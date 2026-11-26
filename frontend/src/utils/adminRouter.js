@@ -384,3 +384,15 @@ export function navigateToCardRoute({ replace = false } = {}) {
     window.history[replace ? 'replaceState' : 'pushState']({ mode: 'card', isAdmin: false, isCustomer: false, isCard: true }, '', targetUrl);
   }
 }
+
+export function resolveAppAssetUrl(rawUrl, { absolute = false } = {}) {
+  const value = String(rawUrl || '').trim();
+  if (!value) return '';
+  if (/^https?:\/\//i.test(value) || /^data:/i.test(value)) return value;
+  const basePath = typeof window !== 'undefined' ? getAppBasePath() : '';
+  const relPath = value.startsWith('/') ? `${basePath}${value}` : `${basePath}/${value}`;
+  if (absolute && typeof window !== 'undefined') {
+    return `${window.location.origin}${relPath}`;
+  }
+  return relPath;
+}

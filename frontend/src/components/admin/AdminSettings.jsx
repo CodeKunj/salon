@@ -3,12 +3,17 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   Settings, Clock, Calendar, DollarSign, Users, Bell,
   Search, Shield, Tag, Plus, Trash2, Edit2, Save, ExternalLink,
-  CheckCircle2
+  CheckCircle2, Upload, Link2, Image as ImageIcon, X
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { usePublic } from '../../context/PublicContext';
 import { useAuth } from '../../context/AuthContext';
-import { canAccessSettingsModule, getAllowedSettingsModules, getAppBasePath } from '../../utils/adminRouter';
+import {
+  canAccessSettingsModule,
+  getAllowedSettingsModules,
+  getAppBasePath,
+  resolveAppAssetUrl,
+} from '../../utils/adminRouter';
 
 export default function AdminSettings({ activeModule: propModule, onModuleChange }) {
   const { payments, refresh } = usePublic();
@@ -38,6 +43,12 @@ export default function AdminSettings({ activeModule: propModule, onModuleChange
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [ogImageMode, setOgImageMode] = useState('url');
+  const [ogUploading, setOgUploading] = useState(false);
+  const [ogUploadError, setOgUploadError] = useState('');
+  const [ogDimensions, setOgDimensions] = useState(null);
+  const [ogPreviewError, setOgPreviewError] = useState(false);
+  const [showOgMarginGuide, setShowOgMarginGuide] = useState(true);
 
   // Modals
   const [closureModal, setClosureModal] = useState(null);
@@ -89,6 +100,51 @@ export default function AdminSettings({ activeModule: propModule, onModuleChange
         [key]: value
       }
     }));
+  };
+
+  const handleOgImageUrlChange = (value) => {
+    setOgUploadError('');
+    setOgDimensions(null);
+    setOgPreviewError(false);
+    handleSettingChange('seo_analytics', 'seo_og_image', value);
+  };
+
+  const handleOgImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.type)) {
+      setOgUploadError('Unsupported format. Upload a JPG, PNG, or WEBP image (max 5 MB).');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setOgUploadError('Image exceeds the 5 MB upload limit.');
+      return;
+    }
+
+    try {
+      setOgUploading(true);
+      setOgUploadError('');
+      setOgPreviewError(false);
+      setOgDimensions(null);
+      const res = await api.uploadSeoOgImage(file);
+      const uploadedUrl = res?.data?.url;
+      if (uploadedUrl) {
+        handleSettingChange('seo_analytics', 'seo_og_image', uploadedUrl);
+        if (res.data.width && res.data.height) {
+          setOgDimensions({ width: res.data.width, height: res.data.height });
+        }
+        setMessage('Open Graph image uploaded and applied.');
+        refresh();
+        setTimeout(() => setMessage(''), 4000);
+      }
+    } catch (err) {
+      setOgUploadError(err.message || 'Failed to upload Open Graph image.');
+    } finally {
+      setOgUploading(false);
+    }
   };
 
   const saveGroup = async (groupName) => {
@@ -1190,14 +1246,179 @@ export default function AdminSettings({ activeModule: propModule, onModuleChange
                 />
               </div>
 
-              <div className="sm:col-span-2">
-                <label className="block font-bold text-salon-muted mb-1">Open Graph Social Image URL (og:image)</label>
-                <input
-                  type="text"
-                  value={settings.seo_analytics?.seo_og_image || ''}
-                  onChange={(e) => handleSettingChange('seo_analytics', 'seo_og_image', e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-salon-border"
-                />
+              <div className="sm:col-span-2 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="block font-bold text-salon-muted">
+                    Open Graph Social Image (og:image)
+                  </label>
+                  <div className="inline-flex items-center gap-1.5 flex-wrap">
+                    <div className="inline-flex rounded-xl border border-salon-border bg-salon-soft/50 p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOgImageMode('url');
+                          setOgUploadError('');
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition-colors ${
+                          ogImageMode === 'url'
+                            ? 'bg-salon-card text-salon-dark shadow-xs border border-salon-border/60'
+                            : 'text-salon-muted hover:text-salon-dark'
+                        }`}
+                      >
+                        <Link2 className="w-3.5 h-3.5" />
+                        <span>Image URL</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setOgImageMode('upload');
+                          setOgUploadError('');
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold flex items-center gap-1.5 transition-colors ${
+                          ogImageMode === 'upload'
+                            ? 'bg-salon-card text-salon-dark shadow-xs border border-salon-border/60'
+                            : 'text-salon-muted hover:text-salon-dark'
+                        }`}
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>Upload File</span>
+                      </button>
+                    </div>
+                    {settings.seo_analytics?.seo_og_image && (
+                      <button
+                        type="button"
+                        onClick={() => handleOgImageUrlChange('')}
+                        className="px-2.5 py-1.5 rounded-lg border border-salon-border text-[11px] font-medium text-salon-muted hover:text-red-700 hover:border-red-300 transition-colors inline-flex items-center gap-1"
+                        title="Clear Open Graph image"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        <span>Clear</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {ogImageMode === 'url' ? (
+                  <input
+                    type="text"
+                    placeholder="https://yourdomain.com/social-banner.jpg or /api/uploads/seo/..."
+                    value={settings.seo_analytics?.seo_og_image || ''}
+                    onChange={(e) => handleOgImageUrlChange(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-salon-border"
+                  />
+                ) : (
+                  <label className="flex flex-col sm:flex-row items-center justify-between gap-3 p-4 rounded-xl border border-dashed border-salon-border bg-salon-soft/35 hover:border-salon-primary/70 transition-colors cursor-pointer">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-10 h-10 rounded-xl bg-salon-card border border-salon-border flex items-center justify-center shrink-0 text-salon-primary">
+                        <Upload className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block text-xs font-semibold text-salon-dark">
+                          {ogUploading ? 'Uploading image to server...' : 'Choose Open Graph image file'}
+                        </span>
+                        <span className="block text-[11px] text-salon-muted truncate">
+                          JPG, PNG, or WEBP up to 5 MB (automatically saved &amp; linked)
+                        </span>
+                      </div>
+                    </div>
+                    <span className="px-3.5 py-1.5 rounded-full bg-salon-primary text-[#FFFDF8] text-[11px] font-semibold shrink-0">
+                      {ogUploading ? 'Uploading...' : 'Browse File'}
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleOgImageUpload}
+                      disabled={ogUploading}
+                      className="sr-only"
+                    />
+                  </label>
+                )}
+
+                {ogUploadError && (
+                  <p className="text-[11px] font-medium text-red-700 bg-red-50 border border-red-200 px-3 py-2 rounded-xl">
+                    {ogUploadError}
+                  </p>
+                )}
+
+                {settings.seo_analytics?.seo_og_image && (
+                  <div className="p-3 rounded-2xl border border-salon-border bg-salon-soft/30 space-y-2.5 max-w-lg">
+                    <div className="flex items-center justify-between gap-2 text-[11px]">
+                      <div className="flex items-center gap-1.5 text-salon-dark font-semibold min-w-0">
+                        <ImageIcon className="w-3.5 h-3.5 text-salon-primary shrink-0" />
+                        <span>Social Card Preview</span>
+                        {ogDimensions && (
+                          <span className="px-2 py-0.5 rounded-full bg-salon-card border border-salon-border font-mono text-[10px] text-salon-muted">
+                            {ogDimensions.width} &times; {ogDimensions.height} px
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowOgMarginGuide((v) => !v)}
+                        className="text-[11px] font-semibold text-salon-primary hover:underline shrink-0"
+                      >
+                        {showOgMarginGuide ? 'Hide margin guide' : 'Show margin guide'}
+                      </button>
+                    </div>
+
+                    <div className="relative aspect-[1.91/1] w-full rounded-xl overflow-hidden border border-salon-border bg-salon-card">
+                      {!ogPreviewError ? (
+                        <>
+                          <img
+                            src={resolveAppAssetUrl(settings.seo_analytics.seo_og_image)}
+                            alt="Open Graph Preview"
+                            onLoad={(e) => {
+                              setOgPreviewError(false);
+                              setOgDimensions({
+                                width: e.currentTarget.naturalWidth,
+                                height: e.currentTarget.naturalHeight,
+                              });
+                            }}
+                            onError={() => {
+                              setOgPreviewError(true);
+                              setOgDimensions(null);
+                            }}
+                            className="w-full h-full object-cover"
+                          />
+                          {showOgMarginGuide && (
+                            <div
+                              className="pointer-events-none absolute inset-[5%] border-2 border-dashed border-[#FFFDF8]/85 shadow-[0_0_0_9999px_rgba(26,22,20,0.18)] flex items-end justify-end p-1.5"
+                              aria-hidden="true"
+                            >
+                              <span className="px-2 py-0.5 rounded bg-[#1A1614]/80 text-[#FFFDF8] font-mono text-[10px]">
+                                Safe margin inset (60 px / ~5%)
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center text-[11px] text-salon-muted">
+                          <span>Could not preview image at this URL.</span>
+                          <span className="text-[10px] opacity-80 truncate max-w-full mt-1">
+                            {settings.seo_analytics.seo_og_image}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Image Dimensions & Margin Specification */}
+                <div className="rounded-xl border border-salon-border bg-salon-soft/45 px-3.5 py-2.5 text-[11px] text-salon-muted space-y-1">
+                  <div className="font-semibold text-salon-dark">
+                    OG Image Size &amp; Margin Guidelines
+                  </div>
+                  <p>
+                    <strong className="text-salon-dark">Recommended Size:</strong> 1200 &times; 630 px (1.91:1 landscape ratio; minimum 600 &times; 315 px).
+                  </p>
+                  <p>
+                    <strong className="text-salon-dark">Image Margin (Safe Zone):</strong> Keep logos, faces, and headline text inside a{' '}
+                    <span className="font-semibold text-salon-dark">60 px (~5%) margin</span> from top, bottom, left, and right edges (and centered inside 630 &times; 630 px for square mobile previews).
+                  </p>
+                  <p>
+                    <strong className="text-salon-dark">Format &amp; Weight:</strong> JPG, PNG, or WEBP up to 5 MB (avoid SVG for social meta tags).
+                  </p>
+                </div>
               </div>
 
               <div className="sm:col-span-2">

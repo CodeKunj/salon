@@ -19,12 +19,14 @@ database/*.db
 *.sqlite
 *.sqlite3
 
-# Logs & temporary files
+# Logs & uploaded media (preserve folder rules, ignore test uploads)
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+api/uploads/seo/*
+!api/uploads/seo/.gitkeep
 tmp/
 temp/
 

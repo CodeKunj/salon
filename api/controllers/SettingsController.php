@@ -109,6 +109,101 @@ class SettingsController {
         jsonResponse(['group' => $group], 200, "Settings for {$group} updated successfully");
     }
 
+    public static function uploadOgImage(): void {
+        $user = Auth::requireAuth(['super_admin']);
+
+        if (!isset($_FILES['image']) || !is_array($_FILES['image'])) {
+            errorResponse('No image file uploaded. Please select a JPG, PNG, or WEBP file.', 422);
+        }
+
+        $file = $_FILES['image'];
+        $err = (int)($file['error'] ?? UPLOAD_ERR_NO_FILE);
+        if ($err !== UPLOAD_ERR_OK) {
+            $errMsg = ($err === UPLOAD_ERR_INI_SIZE || $err === UPLOAD_ERR_FORM_SIZE)
+                ? 'Uploaded image exceeds the server size limit (max 5 MB).'
+                : 'Image upload failed. Please try again.';
+            errorResponse($errMsg, 422);
+        }
+
+        $maxBytes = 5 * 1024 * 1024;
+        $sizeBytes = (int)($file['size'] ?? 0);
+        if ($sizeBytes <= 0 || $sizeBytes > $maxBytes) {
+            errorResponse('Image size must be between 1 KB and 5 MB.', 422);
+        }
+
+        $tmpPath = $file['tmp_name'] ?? '';
+        if (empty($tmpPath) || !is_uploaded_file($tmpPath)) {
+            errorResponse('Invalid upload payload.', 422);
+        }
+
+        $imgInfo = @getimagesize($tmpPath);
+        if ($imgInfo === false || empty($imgInfo[0]) || empty($imgInfo[1])) {
+            errorResponse('Uploaded file is not a valid image.', 422);
+        }
+
+        $mime = $imgInfo['mime'] ?? '';
+        if (class_exists('finfo')) {
+            $finfo = new finfo(FILEINFO_MIME_TYPE);
+            $detected = $finfo->file($tmpPath);
+            if ($detected && $detected !== $mime) {
+                $mime = $detected;
+            }
+        }
+
+        $allowedTypes = [
+            'image/jpeg' => 'jpg',
+            'image/png' => 'png',
+            'image/webp' => 'webp',
+        ];
+        if (!isset($allowedTypes[$mime])) {
+            errorResponse('Unsupported image format. Only JPG, PNG, and WEBP are supported for Open Graph images.', 422);
+        }
+
+        $ext = $allowedTypes[$mime];
+        $uploadDir = dirname(__DIR__) . '/uploads/seo';
+        if (!is_dir($uploadDir) && !@mkdir($uploadDir, 0755, true) && !is_dir($uploadDir)) {
+            errorResponse('Unable to prepare upload directory on server.', 500);
+        }
+
+        $filename = 'og-image-' . date('YmdHis') . '-' . bin2hex(random_bytes(4)) . '.' . $ext;
+        $destPath = $uploadDir . '/' . $filename;
+
+        if (!@move_uploaded_file($tmpPath, $destPath)) {
+            errorResponse('Failed to save uploaded image.', 500);
+        }
+        @chmod($destPath, 0644);
+
+        $relativePath = '/api/uploads/seo/' . $filename;
+
+        $pdo = Database::getConnection();
+        $oldStmt = $pdo->prepare("SELECT setting_value FROM settings WHERE setting_group = 'seo_analytics' AND setting_key = 'seo_og_image'");
+        $oldStmt->execute();
+        $oldVal = (string)$oldStmt->fetchColumn();
+        if (preg_match('#^/api/uploads/seo/(og-image-[a-zA-Z0-9_-]+\.(?:jpg|jpeg|png|webp))$#', $oldVal, $m)) {
+            $oldFile = $uploadDir . '/' . $m[1];
+            if (is_file($oldFile)) {
+                @unlink($oldFile);
+            }
+        }
+
+        $isSqlite = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite';
+        if ($isSqlite) {
+            $upStmt = $pdo->prepare("INSERT INTO settings (setting_group, setting_key, setting_value, is_secret) VALUES ('seo_analytics', 'seo_og_image', ?, 0) ON CONFLICT(setting_key) DO UPDATE SET setting_value = excluded.setting_value, updated_at = CURRENT_TIMESTAMP");
+        } else {
+            $upStmt = $pdo->prepare("INSERT INTO settings (setting_group, setting_key, setting_value, is_secret) VALUES ('seo_analytics', 'seo_og_image', ?, 0) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP");
+        }
+        $upStmt->execute([$relativePath]);
+
+        Auth::logAudit($user['id'], 'SEO_OG_IMAGE_UPLOADED', 'settings', 'seo_og_image', "Uploaded Open Graph image ({$filename}, {$imgInfo[0]}x{$imgInfo[1]})");
+
+        jsonResponse([
+            'url' => $relativePath,
+            'width' => (int)$imgInfo[0],
+            'height' => (int)$imgInfo[1],
+            'size_bytes' => $sizeBytes,
+        ], 200, 'Open Graph image uploaded successfully');
+    }
+
     // BUSINESS HOURS
     public static function getHours(): void {
         Auth::requireAuth(['super_admin', 'branch_manager']);

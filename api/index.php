@@ -165,6 +165,8 @@ try {
             if ($method === 'GET') SettingsController::listPromoCodes();
             elseif ($method === 'POST') SettingsController::savePromoCode();
             elseif (is_numeric($subId) && $method === 'DELETE') SettingsController::deletePromoCode((int)$subId);
+        } elseif ($action === 'seo' && $subId === 'og-image' && $method === 'POST') {
+            SettingsController::uploadOgImage();
         } elseif (!empty($action) && ($method === 'POST' || $method === 'PUT')) {
             // Update settings group (e.g. general, hours, booking_rules, pricing_rules, staff_rules, payments, notifications, seo_analytics, security)
             SettingsController::updateGroup($action);

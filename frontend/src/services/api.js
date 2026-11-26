@@ -20,8 +20,9 @@ function getAuthHeader(authScope = 'staff') {
 async function request(endpoint, options = {}) {
   const { authScope = 'staff', headers: customHeaders, ...fetchOptions } = options;
   const url = `${API_BASE}${endpoint}`;
+  const isFormData = typeof FormData !== 'undefined' && fetchOptions.body instanceof FormData;
   const headers = {
-    'Content-Type': 'application/json',
+    ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
     ...getAuthHeader(authScope),
     ...customHeaders,
   };
@@ -135,6 +136,14 @@ export const api = {
     method: 'POST',
     body: JSON.stringify(payload)
   }),
+  uploadSeoOgImage: (file) => {
+    const formData = new FormData();
+    formData.append('image', file);
+    return request('/settings/seo/og-image', {
+      method: 'POST',
+      body: formData,
+    });
+  },
   getHours: () => request('/settings/hours'),
   updateHours: (days) => request('/settings/hours', {
     method: 'POST',

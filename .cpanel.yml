@@ -11,4 +11,4 @@ deployment:
     - /bin/cp -R assets/. "$DEPLOYPATH/assets/"
     - /bin/cp -R api/. "$DEPLOYPATH/api/"
     - /bin/cp -f database/schema.sql database/.htaccess "$DEPLOYPATH/database/"
-    - /bin/chmod 644 "$DEPLOYPATH/.htaccess" "$DEPLOYPATH/database/.htaccess" "$DEPLOYPATH/api/.htaccess"
+    - /bin/chmod 644 "$DEPLOYPATH/.htaccess" "$DEPLOYPATH/database/.htaccess" "$DEPLOYPATH/api/.htaccess" "$DEPLOYPATH/api/uploads/.htaccess"

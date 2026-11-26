@@ -1,6 +1,7 @@
 // frontend/src/context/PublicContext.jsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { resolveAppAssetUrl } from '../utils/adminRouter';
 
 const PublicContext = createContext(null);
 
@@ -52,13 +53,22 @@ export function PublicProvider({ children }) {
       document.title = seo.title;
     }
 
+    const resolvedOgImage = resolveAppAssetUrl(seo?.og_image, { absolute: true });
+
     // 2. Update/Inject Meta Tags
     updateMetaTag('description', seo?.description);
     updateMetaTag('keywords', seo?.keywords);
     updateMetaTag('robots', seo?.robots);
     updateMetaProperty('og:title', seo?.og_title || seo?.title);
     updateMetaProperty('og:description', seo?.og_description || seo?.description);
-    updateMetaProperty('og:image', seo?.og_image);
+    if (resolvedOgImage) {
+      updateMetaProperty('og:image', resolvedOgImage);
+      updateMetaTag('twitter:card', 'summary_large_image');
+      updateMetaTag('twitter:image', resolvedOgImage);
+    } else {
+      document.querySelector('meta[property="og:image"]')?.remove();
+      document.querySelector('meta[name="twitter:image"]')?.remove();
+    }
     updateMetaProperty('og:type', 'website');
 
     // 3. Google Search Console Verification Meta Tag
