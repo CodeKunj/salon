@@ -40,6 +40,7 @@ function AtelierSpinner({ fullScreen = true, label = 'INITIALIZING ATELIER SUITE
 
 import {
   ACCOUNT_TAB_TITLES,
+  ADMIN_TABS,
   ADMIN_TAB_TITLES,
   canAccessAdminTab,
   getDefaultAdminTab,
