@@ -23,7 +23,7 @@ register_shutdown_function(function (): void {
     $lastError = error_get_last();
     if ($lastError && in_array($lastError['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR], true)) {
         error_log("API Fatal Error: {$lastError['message']} in {$lastError['file']}:{$lastError['line']}");
-        $msg = getenv('APP_ENV') === 'development' ? $lastError['message'] : 'A critical server error occurred.';
+        $msg = Database::env('APP_ENV', 'production') === 'development' ? $lastError['message'] : 'A critical server error occurred.';
         errorResponse($msg, 500);
     }
 });
@@ -262,11 +262,11 @@ try {
             errorResponse('A record with this value already exists or cannot be deleted because it is referenced by existing records.', 409);
         }
         error_log("API DB Error [{$sqlState}]: " . $e->getMessage());
-        $msg = getenv('APP_ENV') === 'development' ? $e->getMessage() : 'A database error occurred. Please try again.';
+        $msg = Database::env('APP_ENV', 'production') === 'development' ? $e->getMessage() : 'A database error occurred. Please try again.';
         errorResponse($msg, 500);
     }
 
     error_log("API Throwable: " . get_class($e) . ': ' . $e->getMessage());
-    $msg = getenv('APP_ENV') === 'development' ? $e->getMessage() : 'Internal server error.';
+    $msg = Database::env('APP_ENV', 'production') === 'development' ? $e->getMessage() : 'Internal server error.';
     errorResponse($msg, 500);
 }

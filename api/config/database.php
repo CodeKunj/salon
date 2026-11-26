@@ -3,6 +3,26 @@
 
 class Database {
     private static ?PDO $pdo = null;
+    private static array $envVars = [];
+    private static bool $envLoaded = false;
+
+    public static function env(string $key, ?string $default = null): ?string {
+        self::loadEnv();
+        $sysVal = function_exists('getenv') ? @getenv($key) : false;
+        if ($sysVal !== false) {
+            return (string)$sysVal;
+        }
+        if (array_key_exists($key, self::$envVars)) {
+            return self::$envVars[$key];
+        }
+        if (array_key_exists($key, $_ENV)) {
+            return (string)$_ENV[$key];
+        }
+        if (array_key_exists($key, $_SERVER)) {
+            return (string)$_SERVER[$key];
+        }
+        return $default;
+    }
 
     public static function getConnection(): PDO {
         if (self::$pdo !== null) {
@@ -11,12 +31,13 @@ class Database {
 
         self::loadEnv();
 
-        $driver = getenv('DB_DRIVER');
-        $host = getenv('DB_HOST') ?: '127.0.0.1';
-        $port = getenv('DB_PORT') ?: '3306';
-        $dbName = getenv('DB_NAME') ?: '';
-        $dbUser = getenv('DB_USER') ?: 'root';
-        $dbPass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+        $driver = self::env('DB_DRIVER', '');
+        $host = self::env('DB_HOST') ?: '127.0.0.1';
+        $port = self::env('DB_PORT') ?: '3306';
+        $dbName = self::env('DB_NAME', '');
+        $dbUser = self::env('DB_USER') ?: 'root';
+        $dbPass = self::env('DB_PASS', '') ?? '';
+        $appEnv = self::env('APP_ENV', 'production');
 
         $sqlitePath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'database' . DIRECTORY_SEPARATOR . 'salon.sqlite';
         $hasExplicitMysql = ($driver === 'mysql') || (!empty($dbName));
@@ -37,18 +58,18 @@ class Database {
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                 PDO::ATTR_EMULATE_PREPARES => false,
-                PDO::ATTR_TIMEOUT => 1,
+                PDO::ATTR_TIMEOUT => 3,
                 $initCommand => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
             ];
             self::$pdo = new PDO($dsn, $dbUser, $dbPass, $options);
             return self::$pdo;
         } catch (PDOException $e) {
             // In local development or standalone testing if MySQL is not running, fallback to SQLite
-            if (getenv('APP_ENV') === 'development' || empty(getenv('DB_NAME'))) {
+            if ($appEnv === 'development' || !$hasExplicitMysql) {
                 return self::getSqliteConnection();
             }
             error_log("Database Connection Error: " . $e->getMessage());
-            $msg = getenv('APP_ENV') === 'development' ? "Database connection failed: " . $e->getMessage() : "Database connection failed.";
+            $msg = $appEnv === 'development' ? "Database connection failed: " . $e->getMessage() : "Database connection failed.";
             throw new Exception($msg);
         }
     }
@@ -80,15 +101,26 @@ class Database {
     }
 
     public static function loadEnv(): void {
+        if (self::$envLoaded) {
+            return;
+        }
+        self::$envLoaded = true;
+
         $envPaths = [
             dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . '.env',
             dirname(__DIR__) . DIRECTORY_SEPARATOR . '.env'
         ];
 
         foreach ($envPaths as $path) {
-            if (file_exists($path)) {
+            if (is_file($path) && is_readable($path)) {
                 $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-                foreach ($lines as $line) {
+                if (!is_array($lines)) {
+                    break;
+                }
+                foreach ($lines as $idx => $line) {
+                    if ($idx === 0) {
+                        $line = preg_replace('/^\xEF\xBB\xBF/', '', $line);
+                    }
                     $line = trim($line);
                     if ($line === '' || str_starts_with($line, '#')) {
                         continue;
@@ -96,10 +128,23 @@ class Database {
                     if (str_contains($line, '=')) {
                         [$name, $value] = explode('=', $line, 2);
                         $name = trim($name);
-                        $value = trim($value, " \t\n\r\0\x0B\"'");
-                        if (getenv($name) === false) {
-                            putenv("{$name}={$value}");
-                            $_ENV[$name] = $value;
+                        if (str_starts_with($name, 'export ')) {
+                            $name = trim(substr($name, 7));
+                        }
+                        if ($name === '') {
+                            continue;
+                        }
+                        $value = trim($value);
+                        if ((str_starts_with($value, '"') && str_ends_with($value, '"')) || (str_starts_with($value, "'") && str_ends_with($value, "'"))) {
+                            $value = substr($value, 1, -1);
+                        }
+                        if (array_key_exists($name, self::$envVars) && $value === '' && self::$envVars[$name] !== '') {
+                            continue;
+                        }
+                        self::$envVars[$name] = $value;
+                        $_ENV[$name] = $value;
+                        if (function_exists('putenv') && @getenv($name) === false) {
+                            @putenv("{$name}={$value}");
                         }
                     }
                 }

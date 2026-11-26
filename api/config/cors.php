@@ -7,10 +7,10 @@ Database::loadEnv();
 // Handle cross-origin requests strictly in production
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 $host = $_SERVER['HTTP_HOST'] ?? '';
-$appEnv = getenv('APP_ENV') ?: 'production';
+$appEnv = Database::env('APP_ENV', 'production') ?: 'production';
 
 $allowedOrigins = [];
-$appUrl = getenv('APP_URL') ?: '';
+$appUrl = Database::env('APP_URL', '') ?: '';
 if (!empty($appUrl)) {
     $parsedApp = parse_url($appUrl);
     if (!empty($parsedApp['scheme']) && !empty($parsedApp['host'])) {
@@ -19,7 +19,7 @@ if (!empty($appUrl)) {
     }
 }
 
-$extraCors = getenv('CORS_ALLOWED_ORIGINS') ?: '';
+$extraCors = Database::env('CORS_ALLOWED_ORIGINS', '') ?: '';
 if (!empty($extraCors)) {
     foreach (explode(',', $extraCors) as $item) {
         $trimmed = rtrim(trim($item), '/');

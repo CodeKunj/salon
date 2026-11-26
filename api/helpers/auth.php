@@ -13,7 +13,7 @@ class Auth {
             return self::$resolvedSecret;
         }
 
-        $envSecret = getenv('JWT_SECRET') ?: ($_ENV['JWT_SECRET'] ?? '');
+        $envSecret = Database::env('JWT_SECRET', '') ?? '';
         if (is_string($envSecret) && strlen(trim($envSecret)) >= 32) {
             self::$resolvedSecret = trim($envSecret);
             return self::$resolvedSecret;
