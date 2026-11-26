@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function () {
+        var p = window.location.pathname;
+        if (/\/(admin|account|my-bookings|login|register|card|connect|share)(\/|$)/i.test(p)) {
+          var b = document.createElement('base');
+          b.setAttribute('data-admin-base', '1');
+          b.href = (p.replace(/\/(admin|account|my-bookings|login|register|card|connect|share)(\/.*)?$/i, '') || '') + '/';
+          document.head.appendChild(b);
+        }
+      })();
+    </script>
+    <link rel="icon" type="image/svg+xml" href="./assets/logo-aura.svg" />
+    <title>RiTiVerse &mdash; Luxury Hair, Dermal Therapy &amp; Aesthetic Salon</title>
+    <!-- Nivora Exact Google Fonts: Instrument Sans & Fragment Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Fragment+Mono&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" crossorigin src="./assets/index-YJ4yUTR_.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/jsx-runtime-CcKCirM8.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-CbMEpqPV.css">
+  </head>
+  <body class="bg-[#F7F1E8] text-[#1A1614] font-sans selection:bg-[#B4563E] selection:text-[#FFFDF8] antialiased [overflow-x:clip] min-h-screen">
+    <div id="root"></div>
+  </body>
+</html>

@@ -1,0 +1,68 @@
+# ===================================================================
+# RiTiVerse Salon & Aesthetics - Production cPanel Root .htaccess
+# Handles security hardening, SPA routing, API dispatching & SEO
+# ===================================================================
+
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Ensure Authorization & X-Auth-Token headers reach PHP in FastCGI / cPanel
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+  # Security: Block direct web access to dotfiles (.env, .git, .cpanel.yml, .htaccess, .jwt_secret) except .well-known
+  RewriteRule ^\.well-known/ - [L]
+  RewriteRule (?:^|/)\. - [F,L]
+
+  # Security: Block direct access to database files, source build folders & server configs
+  RewriteRule ^(?:database|frontend|scripts|node_modules)(?:/|$) - [F,L]
+  RewriteRule ^(?:package(?:-lock)?\.json|CPANEL_DEPLOYMENT\.md|\.env\.example)$ - [F,L]
+
+  # 1. Google Search Console Verification HTML Files
+  RewriteRule ^google[a-zA-Z0-9_-]+\.html$ api/seo/gsc_verify.php [L,QSA]
+
+  # 2. Dynamic XML Sitemap
+  RewriteRule ^sitemap\.xml$ api/seo/sitemap.php [L,QSA]
+
+  # 3. Dynamic Robots.txt
+  RewriteRule ^robots\.txt$ api/seo/robots.php [L,QSA]
+
+  # 4. REST API Routing
+  RewriteRule ^api/(.*)$ api/index.php [L,QSA]
+
+  # 5. Resolve relative ./assets requests when reloading deep SPA routes
+  RewriteRule ^(?:admin|account|my-bookings|login|register|card|connect|share)/(?:.+/)?assets/(.*)$ assets/$1 [L]
+
+  # 6. Serve existing real files and directories directly
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # 7. React SPA Client-Side Routing Fallback
+  RewriteRule ^ index.html [L]
+</IfModule>
+
+<FilesMatch "(?:^\.|\.sqlite|\.sqlite3|\.sql|\.log|\.jwt_secret)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+  <IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+  </IfModule>
+</FilesMatch>
+
+# Security Headers & MIME Types
+<IfModule mod_headers.c>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set X-Frame-Options "SAMEORIGIN"
+  Header always set X-XSS-Protection "1; mode=block"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(self)"
+</IfModule>
+
+# Compression
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css text/javascript application/javascript application/json
+</IfModule>

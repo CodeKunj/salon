@@ -1,0 +1,11 @@
+{
+  "name": "aura-salon-cpanel",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AURA Salon Website and Admin Panel structured for cPanel shared hosting",
+  "scripts": {
+    "build": "cd frontend && npm run build && node ../scripts/sync_to_root.cjs",
+    "dev": "cd frontend && npm run dev",
+    "serve": "php -S 127.0.0.1:8000"
+  }
+}

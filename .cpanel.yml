@@ -1,0 +1,14 @@
+---
+# cPanel Git Version Control deployment manifest
+# Deploys pre-built SPA + PHP API directly to public_html without Node.js on cPanel.
+# Change DEPLOYPATH if deploying to an addon domain or subdomain directory.
+deployment:
+  tasks:
+    - export DEPLOYPATH="$HOME/public_html"
+    - /bin/rm -rf "$DEPLOYPATH/assets"
+    - /bin/mkdir -p "$DEPLOYPATH/assets" "$DEPLOYPATH/api" "$DEPLOYPATH/database"
+    - /bin/cp -f index.html .htaccess .env.example "$DEPLOYPATH/"
+    - /bin/cp -R assets/. "$DEPLOYPATH/assets/"
+    - /bin/cp -R api/. "$DEPLOYPATH/api/"
+    - /bin/cp -f database/schema.sql database/.htaccess "$DEPLOYPATH/database/"
+    - /bin/chmod 644 "$DEPLOYPATH/.htaccess" "$DEPLOYPATH/database/.htaccess" "$DEPLOYPATH/api/.htaccess"
