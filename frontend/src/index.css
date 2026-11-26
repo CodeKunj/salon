@@ -74,10 +74,35 @@
 
 ::-webkit-scrollbar-thumb {
   background: #B4563E;
-  border-radius: 3px;
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
+  background: #8F3D29;
+}
+
+/* Dedicated Horizontal Scrollbar for Admin Tab Strips */
+.atelier-scrollbar-x {
+  scrollbar-width: thin;
+  scrollbar-color: #B4563E #EAE0D2;
+  -webkit-overflow-scrolling: touch;
+}
+
+.atelier-scrollbar-x::-webkit-scrollbar {
+  height: 8px;
+}
+
+.atelier-scrollbar-x::-webkit-scrollbar-track {
+  background: #EAE0D2;
+  border-radius: 9999px;
+}
+
+.atelier-scrollbar-x::-webkit-scrollbar-thumb {
+  background: #B4563E;
+  border-radius: 9999px;
+}
+
+.atelier-scrollbar-x::-webkit-scrollbar-thumb:hover {
   background: #8F3D29;
 }
 

@@ -315,7 +315,7 @@ export default function AdminSettings({ activeModule: propModule, onModuleChange
       </div>
 
       {/* Role-Filtered Modules Navigation Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar border-b border-salon-border">
+      <div className="flex items-center gap-2 overflow-x-auto pb-3 atelier-scrollbar-x border-b border-salon-border">
         {modules.map((m) => {
           const Icon = m.icon;
           const isActive = activeModule === m.id;
@@ -324,7 +324,7 @@ export default function AdminSettings({ activeModule: propModule, onModuleChange
               type="button"
               key={m.id}
               onClick={() => selectModule(m.id)}
-              className={`whitespace-nowrap px-4 py-2.5 rounded-2xl text-xs font-semibold transition-all flex items-center gap-2 ${
+              className={`shrink-0 whitespace-nowrap px-4 py-2.5 rounded-2xl text-xs font-semibold transition-all flex items-center gap-2 ${
                 isActive
                   ? 'bg-salon-primary hover:bg-[#933E29] text-[#FFFDF8] shadow-soft-pink transition-colors'
                   : 'bg-salon-card hover:bg-salon-light text-salon-dark/80 border border-salon-border'
