@@ -7,10 +7,13 @@ import {
 import { api } from '../../services/api';
 import { usePublic } from '../../context/PublicContext';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
+import SafeImage from '../common/SafeImage';
 
 export default function AdminCustomers() {
   const { payments } = usePublic();
   const { permissions } = useAuth();
+  const { notifyError, notifySuccess } = useToast();
   const currencySymbol = payments?.currency_symbol || '₹';
 
   const [customers, setCustomers] = useState([]);
@@ -74,7 +77,7 @@ export default function AdminCustomers() {
         setDetailData(res.data);
       }
     } catch (err) {
-      alert(err.message || 'Unable to load customer booking history.');
+      notifyError(err.message || 'Unable to load customer booking history.');
       setDetailData(null);
     } finally {
       setDetailLoading(false);
@@ -97,8 +100,9 @@ export default function AdminCustomers() {
           customer: { ...prev.customer, is_active: nextStatus },
         }));
       }
+      notifySuccess(`Portal access ${nextStatus ? 'activated' : 'disabled'} for ${cust.name}.`);
     } catch (err) {
-      alert(err.message || 'Failed to update customer account status.');
+      notifyError(err.message || 'Failed to update customer account status.');
     } finally {
       setStatusUpdatingId(null);
     }
@@ -271,9 +275,10 @@ export default function AdminCustomers() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         {c.avatar ? (
-                          <img
+                          <SafeImage
                             src={c.avatar}
                             alt={c.name}
+                            fallbackLabel={c.name}
                             loading="lazy"
                             className="w-9 h-9 rounded-full object-cover border border-salon-border flex-shrink-0"
                           />
@@ -394,9 +399,10 @@ export default function AdminCustomers() {
             <div className="flex items-start justify-between gap-4 border-b border-salon-border pb-4">
               <div className="flex items-center gap-3.5">
                 {detailData.customer?.avatar ? (
-                  <img
+                  <SafeImage
                     src={detailData.customer.avatar}
                     alt={detailData.customer.name}
+                    fallbackLabel={detailData.customer.name}
                     className="w-12 h-12 rounded-full object-cover border border-salon-border"
                   />
                 ) : (

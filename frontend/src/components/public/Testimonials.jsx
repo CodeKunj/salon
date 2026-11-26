@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { usePublic } from '../../context/PublicContext';
 import CornerMarks from '../common/CornerMarks';
+import SafeImage from '../common/SafeImage';
 import { CursorScope, NivoraSectionHeader } from '../common/NivoraPrimitives';
 
 const LOGO_HOUSES = [
@@ -182,9 +183,10 @@ export default function Testimonials() {
                     <div className="relative h-[240px] sm:h-[300px] md:h-[360px] w-full border border-[#B4563E]/40 bg-[#F7F1E8] p-2.5">
                       <CornerMarks all size={12} thickness={2} color="text-[#B4563E]" />
                       <div className="h-full w-full overflow-hidden bg-[#EAE0D2]">
-                        <img
+                        <SafeImage
                           src={active.avatar_url}
                           alt={active.client_name}
+                          fallbackLabel={active.client_name}
                           draggable={false}
                           className="pointer-events-none h-full w-full object-cover"
                         />

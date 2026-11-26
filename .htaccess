@@ -31,13 +31,13 @@ Options -Indexes
   # 4. REST API Routing
   RewriteRule ^api/(.*)$ api/index.php [L,QSA]
 
-  # 5. Resolve relative ./assets requests when reloading deep SPA routes
-  RewriteRule ^(?:admin|account|my-bookings|login|register|card|connect|share)/(?:.+/)?assets/(.*)$ assets/$1 [L]
-
-  # 6. Serve existing real files and directories directly
+  # 5. Serve existing real files and directories directly
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
+
+  # 6. Resolve relative ./assets requests when reloading deep SPA or 404 routes
+  RewriteRule ^.+/assets/(.*)$ assets/$1 [L]
 
   # 7. React SPA Client-Side Routing Fallback
   RewriteRule ^ index.html [L]

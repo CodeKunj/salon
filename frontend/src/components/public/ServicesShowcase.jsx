@@ -8,6 +8,7 @@ import {
 import { usePublic } from '../../context/PublicContext';
 import { useBooking } from '../../context/BookingContext';
 import CornerMarks from '../common/CornerMarks';
+import SafeImage from '../common/SafeImage';
 import { NivoraButton } from '../common/NivoraPrimitives';
 
 const FALLBACK_CATEGORIES = [
@@ -229,9 +230,10 @@ function ServiceSlideContent({ slide, index, total, currencySymbol = '₹', onSe
         <div className="relative border border-[#B4563E]/40 bg-[#FFFDF8] p-2.5 sm:p-3 shadow-[10px_10px_0px_rgba(180,86,62,0.18)]">
           <CornerMarks bl br size={12} thickness={2} color="text-[#B4563E]" />
           <div className="relative aspect-[16/11] sm:aspect-[1.426] lg:max-h-[54vh] w-full overflow-hidden bg-[#EAE0D2]">
-            <img
+            <SafeImage
               src={slide.image}
               alt={slide.name}
+              fallbackLabel={slide.name}
               loading="lazy"
               className="h-full w-full object-cover"
             />

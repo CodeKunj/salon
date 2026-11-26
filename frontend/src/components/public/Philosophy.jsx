@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { usePublic } from '../../context/PublicContext';
 import { useBooking } from '../../context/BookingContext';
 import CornerMarks from '../common/CornerMarks';
+import SafeImage from '../common/SafeImage';
 import {
   CursorScope,
   NivoraButton,
@@ -133,9 +134,11 @@ export default function Philosophy() {
 
               <TiltCard3D maxTilt={10} maxMove={14} hoverScale={1.04}>
                 <div className="relative aspect-[0.7458] w-full overflow-hidden bg-[#EAE0D2]">
-                  <img
+                  <SafeImage
                     src={item.image_url || FALLBACK_CARDS[idx % 2].image_url}
+                    fallbackSrc={FALLBACK_CARDS[idx % 2].image_url}
                     alt={item.title}
+                    fallbackLabel={item.title}
                     loading="lazy"
                     className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />

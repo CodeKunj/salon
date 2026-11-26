@@ -14,6 +14,7 @@ export default function QrCodeCanvas({
   className = '',
 }) {
   const [dataUrl, setDataUrl] = useState('');
+  const [qrError, setQrError] = useState(false);
 
   useEffect(() => {
     if (!value) return undefined;
@@ -21,6 +22,7 @@ export default function QrCodeCanvas({
 
     (async () => {
       try {
+        setQrError(false);
         const url = await QRCode.toDataURL(value, {
           width: Math.max(size * 2, 440),
           margin: 2,
@@ -35,6 +37,9 @@ export default function QrCodeCanvas({
         }
       } catch (err) {
         console.error('Failed to render QR code:', err);
+        if (!cancelled) {
+          setQrError(true);
+        }
       }
     })();
 
@@ -42,6 +47,17 @@ export default function QrCodeCanvas({
       cancelled = true;
     };
   }, [value, size, darkColor, lightColor]);
+
+  if (qrError) {
+    return (
+      <div
+        style={{ width: size, height: size, backgroundColor: lightColor }}
+        className={`flex items-center justify-center p-4 text-center border border-red-200 text-red-700 font-mono text-[11px] ${className}`}
+      >
+        Unable to generate QR code.
+      </div>
+    );
+  }
 
   if (!value || !dataUrl) {
     return (

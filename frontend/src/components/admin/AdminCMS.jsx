@@ -3,9 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { api } from '../../services/api';
 import { usePublic } from '../../context/PublicContext';
+import { useToast } from '../../context/ToastContext';
+import SafeImage from '../common/SafeImage';
 
 export default function AdminCMS({ activeSubTab, onSubTabChange }) {
   const { refresh } = usePublic();
+  const { notifyError, notifySuccess } = useToast();
   const [localTab, setLocalTab] = useState('hero');
   const activeTab = activeSubTab || localTab;
 
@@ -22,6 +25,7 @@ export default function AdminCMS({ activeSubTab, onSubTabChange }) {
   const [testimonials, setTestimonials] = useState([]);
   const [faqs, setFaqs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [savingHero, setSavingHero] = useState(false);
 
   // Modals
@@ -32,6 +36,7 @@ export default function AdminCMS({ activeSubTab, onSubTabChange }) {
   const loadCMS = async () => {
     try {
       setLoading(true);
+      setLoadError('');
       const [hRes, gRes, tRes, fRes] = await Promise.all([
         api.getCMSHero(),
         api.getCMSGallery(),
@@ -43,7 +48,7 @@ export default function AdminCMS({ activeSubTab, onSubTabChange }) {
       setTestimonials(tRes.data || []);
       setFaqs(fRes.data || []);
     } catch (err) {
-      console.error('Failed to load CMS data:', err);
+      setLoadError(err.message || 'Failed to load CMS content.');
     } finally {
       setLoading(false);
     }
@@ -58,10 +63,10 @@ export default function AdminCMS({ activeSubTab, onSubTabChange }) {
     try {
       setSavingHero(true);
       await api.updateCMSHero(hero);
-      alert('Hero banner updated successfully.');
+      notifySuccess('Hero banner updated successfully.');
       refresh();
     } catch (err) {
-      alert(err.message || 'Failed to update hero.');
+      notifyError(err.message || 'Failed to update hero banner.');
     } finally {
       setSavingHero(false);
     }
@@ -73,10 +78,11 @@ export default function AdminCMS({ activeSubTab, onSubTabChange }) {
     try {
       await api.saveCMSGallery(galleryModal);
       setGalleryModal(null);
+      notifySuccess('Lookbook photo saved.');
       loadCMS();
       refresh();
     } catch (err) {
-      alert(err.message);
+      notifyError(err.message || 'Failed to save lookbook item.');
     }
   };
 
@@ -84,10 +90,11 @@ export default function AdminCMS({ activeSubTab, onSubTabChange }) {
     if (!window.confirm('Delete this lookbook item?')) return;
     try {
       await api.deleteCMSGallery(id);
+      notifySuccess('Lookbook photo removed.');
       loadCMS();
       refresh();
     } catch (err) {
-      alert(err.message);
+      notifyError(err.message || 'Failed to delete lookbook item.');
     }
   };
 
@@ -97,10 +104,11 @@ export default function AdminCMS({ activeSubTab, onSubTabChange }) {
     try {
       await api.saveCMSTestimonial(testimonialModal);
       setTestimonialModal(null);
+      notifySuccess('Testimonial saved.');
       loadCMS();
       refresh();
     } catch (err) {
-      alert(err.message);
+      notifyError(err.message || 'Failed to save testimonial.');
     }
   };
 
@@ -108,10 +116,11 @@ export default function AdminCMS({ activeSubTab, onSubTabChange }) {
     if (!window.confirm('Delete this testimonial?')) return;
     try {
       await api.deleteCMSTestimonial(id);
+      notifySuccess('Testimonial deleted.');
       loadCMS();
       refresh();
     } catch (err) {
-      alert(err.message);
+      notifyError(err.message || 'Failed to delete testimonial.');
     }
   };
 
@@ -121,10 +130,11 @@ export default function AdminCMS({ activeSubTab, onSubTabChange }) {
     try {
       await api.saveCMSFAQ(faqModal);
       setFaqModal(null);
+      notifySuccess('FAQ saved.');
       loadCMS();
       refresh();
     } catch (err) {
-      alert(err.message);
+      notifyError(err.message || 'Failed to save FAQ.');
     }
   };
 
@@ -132,10 +142,11 @@ export default function AdminCMS({ activeSubTab, onSubTabChange }) {
     if (!window.confirm('Delete this FAQ?')) return;
     try {
       await api.deleteCMSFAQ(id);
+      notifySuccess('FAQ deleted.');
       loadCMS();
       refresh();
     } catch (err) {
-      alert(err.message);
+      notifyError(err.message || 'Failed to delete FAQ.');
     }
   };
 
@@ -192,6 +203,19 @@ export default function AdminCMS({ activeSubTab, onSubTabChange }) {
           </button>
         </div>
       </div>
+
+      {loadError && (
+        <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-700 flex flex-wrap items-center justify-between gap-3">
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={loadCMS}
+            className="px-3.5 py-1.5 rounded-full bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {loading && (
         <div className="p-8 text-center text-xs text-salon-muted">Loading editorial content...</div>
@@ -333,7 +357,7 @@ export default function AdminCMS({ activeSubTab, onSubTabChange }) {
             {gallery.map((g) => (
               <div key={g.id} className="rounded-2xl border border-salon-border overflow-hidden bg-salon-card shadow-xs group">
                 <div className="relative aspect-[4/5] bg-salon-soft">
-                  <img src={g.image_url} alt={g.title} className="w-full h-full object-cover" />
+                  <SafeImage src={g.image_url} alt={g.title} fallbackLabel={g.title} className="w-full h-full object-cover" />
                   <div className="absolute top-2 left-2">
                     <span className="px-2 py-0.5 rounded-md bg-salon-card/95 text-[10px] font-bold text-salon-dark uppercase">
                       {g.category}

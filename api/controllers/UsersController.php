@@ -34,7 +34,15 @@ class UsersController {
         }
 
         if ($id) {
+            $exists = $pdo->prepare("SELECT id FROM users WHERE id = ? LIMIT 1");
+            $exists->execute([$id]);
+            if (!$exists->fetch()) {
+                errorResponse('User not found.', 404);
+            }
             if (!empty($password)) {
+                if (strlen($password) < 6) {
+                    errorResponse('Password must be at least 6 characters long.', 422);
+                }
                 $hash = password_hash($password, PASSWORD_BCRYPT);
                 $stmt = $pdo->prepare("UPDATE users SET name = ?, email = ?, role = ?, phone = ?, avatar = ?, is_active = ?, password_hash = ? WHERE id = ?");
                 $stmt->execute([$name, $email, $role, $phone, $avatar, $isActive, $hash, $id]);
@@ -44,8 +52,8 @@ class UsersController {
             }
             Auth::logAudit($currentUser['id'], 'USER_UPDATED', 'users', (string)$id, "User {$name} updated");
         } else {
-            if (empty($password)) {
-                errorResponse('Password is required for new users.', 422);
+            if (empty($password) || strlen($password) < 6) {
+                errorResponse('Password must be at least 6 characters long for new users.', 422);
             }
             $hash = password_hash($password, PASSWORD_BCRYPT);
             $stmt = $pdo->prepare("INSERT INTO users (name, email, password_hash, role, phone, avatar, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)");
@@ -64,7 +72,11 @@ class UsersController {
         }
 
         $pdo = Database::getConnection();
-        $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$id]);
+        $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+        $stmt->execute([$id]);
+        if ($stmt->rowCount() === 0) {
+            errorResponse('User not found.', 404);
+        }
         Auth::logAudit($currentUser['id'], 'USER_DELETED', 'users', (string)$id, "User #{$id} deleted");
         jsonResponse(null, 200, 'User deleted');
     }

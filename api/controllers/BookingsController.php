@@ -185,6 +185,20 @@ class BookingsController {
             $params[] = $notes;
         }
 
+        $existsStmt = $pdo->prepare("SELECT id FROM bookings WHERE id = ? LIMIT 1");
+        $existsStmt->execute([$id]);
+        if (!$existsStmt->fetch()) {
+            errorResponse('Booking not found.', 404);
+        }
+
+        if ($stylistId !== null && $stylistId > 0) {
+            $styCheck = $pdo->prepare("SELECT id FROM stylists WHERE id = ? LIMIT 1");
+            $styCheck->execute([$stylistId]);
+            if (!$styCheck->fetch()) {
+                errorResponse('Selected stylist not found.', 422);
+            }
+        }
+
         if (empty($updates)) {
             errorResponse('No valid fields to update.', 422);
         }
@@ -224,6 +238,10 @@ class BookingsController {
         $srvStmt->execute($serviceIds);
         $srvs = $srvStmt->fetchAll();
 
+        if (empty($srvs)) {
+            errorResponse('Selected services were not found.', 404);
+        }
+
         $subtotal = 0.0;
         $totalDuration = 0;
         $bookingItems = [];
@@ -244,23 +262,33 @@ class BookingsController {
         $endTime = date('H:i:s', time() + ($totalDuration * 60));
         $reference = 'WALK-' . strtoupper(substr(md5(uniqid((string)mt_rand(), true)), 0, 6));
 
-        $insStmt = $pdo->prepare("INSERT INTO bookings (
-            booking_reference, customer_name, customer_email, customer_phone, stylist_id,
-            booking_date, start_time, end_time, total_duration, subtotal, discount_amount,
-            tax_amount, total_amount, deposit_amount, payment_mode, payment_status,
-            booking_status, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.00, 0.00, ?, 0.00, 'pay_at_salon', 'pending', 'confirmed', ?)");
+        $pdo->beginTransaction();
+        try {
+            $insStmt = $pdo->prepare("INSERT INTO bookings (
+                booking_reference, customer_name, customer_email, customer_phone, stylist_id,
+                booking_date, start_time, end_time, total_duration, subtotal, discount_amount,
+                tax_amount, total_amount, deposit_amount, payment_mode, payment_status,
+                booking_status, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0.00, 0.00, ?, 0.00, 'pay_at_salon', 'pending', 'confirmed', ?)");
 
-        $insStmt->execute([
-            $reference, $name, $email, $phone, $stylistId,
-            $date, $startTime, $endTime, $totalDuration, $subtotal, $subtotal, $notes
-        ]);
+            $insStmt->execute([
+                $reference, $name, $email, $phone, $stylistId,
+                $date, $startTime, $endTime, $totalDuration, $subtotal, $subtotal, $notes
+            ]);
 
-        $bId = (int)$pdo->lastInsertId();
+            $bId = (int)$pdo->lastInsertId();
 
-        $itemStmt = $pdo->prepare("INSERT INTO booking_items (booking_id, service_id, package_id, item_name, price, duration_minutes) VALUES (?, ?, ?, ?, ?, ?)");
-        foreach ($bookingItems as $bi) {
-            $itemStmt->execute([$bId, $bi['service_id'], null, $bi['item_name'], $bi['price'], $bi['duration_minutes']]);
+            $itemStmt = $pdo->prepare("INSERT INTO booking_items (booking_id, service_id, package_id, item_name, price, duration_minutes) VALUES (?, ?, ?, ?, ?, ?)");
+            foreach ($bookingItems as $bi) {
+                $itemStmt->execute([$bId, $bi['service_id'], null, $bi['item_name'], $bi['price'], $bi['duration_minutes']]);
+            }
+
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
         }
 
         Auth::logAudit($currentUser['id'], 'WALKIN_CREATED', 'bookings', (string)$bId, "Walk-in appointment #{$reference} registered");
@@ -274,6 +302,9 @@ class BookingsController {
 
         $stmt = $pdo->prepare("DELETE FROM bookings WHERE id = ?");
         $stmt->execute([$id]);
+        if ($stmt->rowCount() === 0) {
+            errorResponse('Booking not found.', 404);
+        }
 
         Auth::logAudit($currentUser['id'], 'BOOKING_DELETED', 'bookings', (string)$id, "Booking #{$id} deleted");
 

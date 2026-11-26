@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { usePublic } from '../../context/PublicContext';
 import { useBooking } from '../../context/BookingContext';
 import CornerMarks from '../common/CornerMarks';
+import SafeImage from '../common/SafeImage';
 import {
   CursorScope,
   NivoraButton,
@@ -177,9 +178,10 @@ export default function Lookbook() {
 
                 <TiltCard3D maxTilt={10} maxMove={14} hoverScale={1.04}>
                   <div className="relative aspect-[0.7458] w-full overflow-hidden bg-[#EAE0D2]">
-                    <img
+                    <SafeImage
                       src={item.image_url}
                       alt={item.title}
+                      fallbackLabel={item.title}
                       loading="lazy"
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
@@ -227,9 +229,10 @@ export default function Lookbook() {
               <CornerMarks all size={14} thickness={2} color="text-[#B4563E]" />
 
               <div className="aspect-[4/3] md:aspect-[0.8] max-h-[38vh] md:max-h-none w-full overflow-hidden bg-[#EAE0D2]">
-                <img
+                <SafeImage
                   src={activePreview.image_url}
                   alt={activePreview.title}
+                  fallbackLabel={activePreview.title}
                   className="h-full w-full object-cover"
                 />
               </div>

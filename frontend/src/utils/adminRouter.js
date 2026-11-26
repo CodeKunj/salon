@@ -191,6 +191,19 @@ export const ACCOUNT_TAB_TITLES = {
 };
 
 export function getAppBasePath(pathname = typeof window !== 'undefined' ? window.location.pathname : '/') {
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    const modScript = document.querySelector(
+      'script[type="module"][src*="assets/"], script[type="module"][src*="src/main.jsx"]'
+    );
+    if (modScript?.src) {
+      try {
+        const u = new URL(modScript.src, window.location.href);
+        return u.pathname.replace(/\/(assets|src)\/.*$/i, '').replace(/\/+$/, '');
+      } catch {
+        // fall through
+      }
+    }
+  }
   const deepMatch = pathname.match(/^(.*?)\/(admin|account|my-bookings|login|register|card|connect|share)(\/.*)?$/i);
   if (deepMatch) {
     return deepMatch[1];
@@ -219,6 +232,7 @@ export function parseAppRoute(loc = typeof window !== 'undefined' ? window.locat
       isAdmin: true,
       isCustomer: false,
       isCard: false,
+      isNotFound: false,
       tab,
       subTab,
       accountTab: 'upcoming',
@@ -239,6 +253,7 @@ export function parseAppRoute(loc = typeof window !== 'undefined' ? window.locat
       isAdmin: false,
       isCustomer: false,
       isCard: true,
+      isNotFound: false,
       tab: 'overview',
       subTab: null,
       accountTab: 'upcoming',
@@ -264,6 +279,7 @@ export function parseAppRoute(loc = typeof window !== 'undefined' ? window.locat
       isAdmin: false,
       isCustomer: true,
       isCard: false,
+      isNotFound: false,
       tab: 'overview',
       subTab: null,
       accountTab,
@@ -275,17 +291,25 @@ export function parseAppRoute(loc = typeof window !== 'undefined' ? window.locat
     };
   }
 
+  // Detect unknown paths relative to app mount base (showing 404 Not Found instead of silent home fallback)
+  const appBase = getAppBasePath(pathname);
+  const relPath = (appBase && pathname.startsWith(appBase) ? pathname.slice(appBase.length) : pathname)
+    .replace(/\/+$/, '');
+  const isHomePath = relPath === '' || relPath === '/' || /^\/index\.html$/i.test(relPath);
+  const isNotFound = !isHomePath;
+
   return {
-    mode: 'public',
+    mode: isNotFound ? 'not_found' : 'public',
     isAdmin: false,
     isCustomer: false,
     isCard: false,
+    isNotFound,
     tab: 'overview',
     subTab: null,
     accountTab: 'upcoming',
     authMode: 'login',
     explicitAuth: false,
-    rawTab: null,
+    rawTab: isNotFound ? relPath : null,
     rawSubTab: null,
     fromHash: false,
   };

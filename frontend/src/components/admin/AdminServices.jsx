@@ -4,10 +4,12 @@ import { Plus, Edit2, Trash2 } from 'lucide-react';
 import { api } from '../../services/api';
 import { usePublic } from '../../context/PublicContext';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 
 export default function AdminServices({ activeSubTab, onSubTabChange }) {
   const { payments, refresh } = usePublic();
   const { permissions } = useAuth();
+  const { notifyError, notifySuccess } = useToast();
   const [localSubTab, setLocalSubTab] = useState('services');
   const subTab = activeSubTab || localSubTab;
 
@@ -23,6 +25,7 @@ export default function AdminServices({ activeSubTab, onSubTabChange }) {
   const [services, setServices] = useState([]);
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   // Edit / Create modal state
   const [serviceModal, setServiceModal] = useState(null);
@@ -32,6 +35,7 @@ export default function AdminServices({ activeSubTab, onSubTabChange }) {
   const loadAll = async () => {
     try {
       setLoading(true);
+      setLoadError('');
       const [cRes, sRes, pRes] = await Promise.all([
         api.getCategories(),
         api.getServices(),
@@ -41,7 +45,7 @@ export default function AdminServices({ activeSubTab, onSubTabChange }) {
       setServices(sRes.data || []);
       setPackages(pRes.data || []);
     } catch (err) {
-      console.error('Failed to load services data:', err);
+      setLoadError(err.message || 'Failed to load services catalog.');
     } finally {
       setLoading(false);
     }
@@ -59,10 +63,11 @@ export default function AdminServices({ activeSubTab, onSubTabChange }) {
     try {
       await api.saveService(serviceModal);
       setServiceModal(null);
+      notifySuccess('Service saved.');
       loadAll();
       refresh();
     } catch (err) {
-      alert(err.message || 'Failed to save service.');
+      notifyError(err.message || 'Failed to save service.');
     }
   };
 
@@ -70,10 +75,11 @@ export default function AdminServices({ activeSubTab, onSubTabChange }) {
     if (!window.confirm('Delete this service?')) return;
     try {
       await api.deleteService(id);
+      notifySuccess('Service deleted.');
       loadAll();
       refresh();
     } catch (err) {
-      alert(err.message);
+      notifyError(err.message || 'Failed to delete service.');
     }
   };
 
@@ -83,10 +89,11 @@ export default function AdminServices({ activeSubTab, onSubTabChange }) {
     try {
       await api.saveCategory(catModal);
       setCatModal(null);
+      notifySuccess('Category saved.');
       loadAll();
       refresh();
     } catch (err) {
-      alert(err.message || 'Failed to save category.');
+      notifyError(err.message || 'Failed to save category.');
     }
   };
 
@@ -94,10 +101,11 @@ export default function AdminServices({ activeSubTab, onSubTabChange }) {
     if (!window.confirm('Delete this category?')) return;
     try {
       await api.deleteCategory(id);
+      notifySuccess('Category deleted.');
       loadAll();
       refresh();
     } catch (err) {
-      alert(err.message);
+      notifyError(err.message || 'Failed to delete category.');
     }
   };
 
@@ -107,10 +115,11 @@ export default function AdminServices({ activeSubTab, onSubTabChange }) {
     try {
       await api.savePackage(pkgModal);
       setPkgModal(null);
+      notifySuccess('Package saved.');
       loadAll();
       refresh();
     } catch (err) {
-      alert(err.message || 'Failed to save package.');
+      notifyError(err.message || 'Failed to save package.');
     }
   };
 
@@ -118,10 +127,11 @@ export default function AdminServices({ activeSubTab, onSubTabChange }) {
     if (!window.confirm('Delete this package?')) return;
     try {
       await api.deletePackage(id);
+      notifySuccess('Package deleted.');
       loadAll();
       refresh();
     } catch (err) {
-      alert(err.message);
+      notifyError(err.message || 'Failed to delete package.');
     }
   };
 
@@ -169,6 +179,19 @@ export default function AdminServices({ activeSubTab, onSubTabChange }) {
           </button>
         </div>
       </div>
+
+      {loadError && (
+        <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-700 flex flex-wrap items-center justify-between gap-3">
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={loadAll}
+            className="px-3.5 py-1.5 rounded-full bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {loading && (
         <div className="p-8 text-center text-xs text-salon-muted">Loading catalog...</div>

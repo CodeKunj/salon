@@ -272,7 +272,11 @@ class SettingsController {
     public static function deleteClosure(int $id): void {
         $user = Auth::requireAuth(['super_admin', 'branch_manager']);
         $pdo = Database::getConnection();
-        $pdo->prepare("DELETE FROM special_closures WHERE id = ?")->execute([$id]);
+        $stmt = $pdo->prepare("DELETE FROM special_closures WHERE id = ?");
+        $stmt->execute([$id]);
+        if ($stmt->rowCount() === 0) {
+            errorResponse('Closure not found.', 404);
+        }
         Auth::logAudit($user['id'], 'CLOSURE_DELETED', 'special_closures', (string)$id, "Closure #{$id} deleted");
         jsonResponse(null, 200, 'Closure deleted');
     }
@@ -304,6 +308,12 @@ class SettingsController {
         if (empty($code) || $discountValue <= 0) {
             errorResponse('Code and positive discount value are required.', 422);
         }
+        if ($discountType === 'percentage' && $discountValue > 100) {
+            errorResponse('Percentage discount cannot exceed 100%.', 422);
+        }
+        if ($startDate && $endDate && $endDate < $startDate) {
+            errorResponse('End date cannot be earlier than start date.', 422);
+        }
 
         if ($id) {
             $stmt = $pdo->prepare("UPDATE promo_codes SET code = ?, discount_type = ?, discount_value = ?, min_order_value = ?, max_discount = ?, start_date = ?, end_date = ?, usage_limit = ?, is_active = ? WHERE id = ?");
@@ -321,7 +331,11 @@ class SettingsController {
     public static function deletePromoCode(int $id): void {
         $user = Auth::requireAuth(['super_admin', 'branch_manager']);
         $pdo = Database::getConnection();
-        $pdo->prepare("DELETE FROM promo_codes WHERE id = ?")->execute([$id]);
+        $stmt = $pdo->prepare("DELETE FROM promo_codes WHERE id = ?");
+        $stmt->execute([$id]);
+        if ($stmt->rowCount() === 0) {
+            errorResponse('Promo code not found.', 404);
+        }
         Auth::logAudit($user['id'], 'PROMO_DELETED', 'promo_codes', (string)$id, "Promo code #{$id} deleted");
         jsonResponse(null, 200, 'Promo code deleted');
     }

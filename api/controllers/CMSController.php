@@ -21,6 +21,9 @@ class CMSController {
 
         $headline = trim($input['headline'] ?? '');
         $subheadline = trim($input['subheadline'] ?? '');
+        if (empty($headline)) {
+            errorResponse('Hero headline is required.', 422);
+        }
         $badgeText = trim($input['badge_text'] ?? 'HAUTE COIFFURE & LUXURY AESTHETICS');
         $ctaText = trim($input['cta_text'] ?? 'Book Your Experience');
         $ctaLink = trim($input['cta_link'] ?? '#book');
@@ -85,7 +88,11 @@ class CMSController {
     public static function deleteGallery(int $id): void {
         $user = Auth::requireAuth(['super_admin', 'branch_manager']);
         $pdo = Database::getConnection();
-        $pdo->prepare("DELETE FROM cms_gallery WHERE id = ?")->execute([$id]);
+        $stmt = $pdo->prepare("DELETE FROM cms_gallery WHERE id = ?");
+        $stmt->execute([$id]);
+        if ($stmt->rowCount() === 0) {
+            errorResponse('Gallery item not found.', 404);
+        }
         Auth::logAudit($user['id'], 'GALLERY_DELETED', 'cms_gallery', (string)$id, "Gallery item #{$id} deleted");
         jsonResponse(null, 200, 'Gallery item deleted');
     }
@@ -132,7 +139,11 @@ class CMSController {
     public static function deleteTestimonial(int $id): void {
         $user = Auth::requireAuth(['super_admin', 'branch_manager']);
         $pdo = Database::getConnection();
-        $pdo->prepare("DELETE FROM cms_testimonials WHERE id = ?")->execute([$id]);
+        $stmt = $pdo->prepare("DELETE FROM cms_testimonials WHERE id = ?");
+        $stmt->execute([$id]);
+        if ($stmt->rowCount() === 0) {
+            errorResponse('Testimonial not found.', 404);
+        }
         Auth::logAudit($user['id'], 'TESTIMONIAL_DELETED', 'cms_testimonials', (string)$id, "Testimonial #{$id} deleted");
         jsonResponse(null, 200, 'Testimonial deleted');
     }
@@ -177,7 +188,11 @@ class CMSController {
     public static function deleteFAQ(int $id): void {
         $user = Auth::requireAuth(['super_admin', 'branch_manager']);
         $pdo = Database::getConnection();
-        $pdo->prepare("DELETE FROM cms_faqs WHERE id = ?")->execute([$id]);
+        $stmt = $pdo->prepare("DELETE FROM cms_faqs WHERE id = ?");
+        $stmt->execute([$id]);
+        if ($stmt->rowCount() === 0) {
+            errorResponse('FAQ item not found.', 404);
+        }
         Auth::logAudit($user['id'], 'FAQ_DELETED', 'cms_faqs', (string)$id, "FAQ #{$id} deleted");
         jsonResponse(null, 200, 'FAQ deleted');
     }

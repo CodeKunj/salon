@@ -9,8 +9,10 @@ import {
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import { usePublic } from '../../context/PublicContext';
 import { useBooking } from '../../context/BookingContext';
+import { useToast } from '../../context/ToastContext';
 import { api } from '../../services/api';
 import CornerMarks from '../common/CornerMarks';
+import SafeImage from '../common/SafeImage';
 
 const STATUS_BADGE = {
   confirmed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -36,6 +38,7 @@ export default function CustomerPortal({
 }) {
   const { salon, payments } = usePublic();
   const { openBooking, rebookFromHistory, confirmedBooking } = useBooking();
+  const { notifyError } = useToast();
   const {
     customerUser,
     isCustomerAuthenticated,
@@ -169,7 +172,7 @@ export default function CustomerPortal({
       }
       await fetchMyBookings();
     } catch (err) {
-      alert(err.message || 'Could not cancel booking.');
+      notifyError(err.message || 'Could not cancel booking.');
     } finally {
       setCancellingId(null);
     }
@@ -735,9 +738,10 @@ export default function CustomerPortal({
                     <div className="lg:col-span-5 flex flex-wrap lg:justify-end items-center gap-2.5">
                       {b.stylist_name && (
                         <div className="flex items-center gap-2 mr-auto lg:mr-2 bg-[#F3E7DB]/70 px-3 py-1.5 border border-[#1A1614]/15">
-                          <img
+                          <SafeImage
                             src={b.stylist_avatar || 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=100&q=80'}
                             alt={b.stylist_name}
+                            fallbackLabel={b.stylist_name}
                             className="w-7 h-7 rounded-full object-cover"
                           />
                           <div className="text-left">

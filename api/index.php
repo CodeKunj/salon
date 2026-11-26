@@ -1,11 +1,32 @@
 <?php
 // api/index.php - Main API Router
 
+// Main API Error Guard (prevent raw HTML warnings/fatals from breaking JSON API)
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+
 require_once __DIR__ . '/config/cors.php';
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/helpers/response.php';
 require_once __DIR__ . '/helpers/auth.php';
 require_once __DIR__ . '/helpers/validator.php';
+
+set_error_handler(function (int $severity, string $message, string $file, int $line): bool {
+    if (!(error_reporting() & $severity)) {
+        return false;
+    }
+    error_log("API PHP Warning/Error [{$severity}]: {$message} in {$file}:{$line}");
+    return true;
+});
+
+register_shutdown_function(function (): void {
+    $lastError = error_get_last();
+    if ($lastError && in_array($lastError['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR], true)) {
+        error_log("API Fatal Error: {$lastError['message']} in {$lastError['file']}:{$lastError['line']}");
+        $msg = getenv('APP_ENV') === 'development' ? $lastError['message'] : 'A critical server error occurred.';
+        errorResponse($msg, 500);
+    }
+});
 
 // Load controllers
 require_once __DIR__ . '/controllers/PublicController.php';
@@ -234,8 +255,18 @@ try {
     // Fallback 404
     errorResponse("Endpoint not found: {$method} /api/{$path}", 404);
 
-} catch (Exception $e) {
-    error_log("API Exception: " . $e->getMessage());
+} catch (Throwable $e) {
+    if ($e instanceof PDOException) {
+        $sqlState = (string)($e->errorInfo[0] ?? $e->getCode());
+        if ($sqlState === '23000' || str_contains($e->getMessage(), 'UNIQUE constraint failed') || str_contains($e->getMessage(), 'Duplicate entry')) {
+            errorResponse('A record with this value already exists or cannot be deleted because it is referenced by existing records.', 409);
+        }
+        error_log("API DB Error [{$sqlState}]: " . $e->getMessage());
+        $msg = getenv('APP_ENV') === 'development' ? $e->getMessage() : 'A database error occurred. Please try again.';
+        errorResponse($msg, 500);
+    }
+
+    error_log("API Throwable: " . get_class($e) . ': ' . $e->getMessage());
     $msg = getenv('APP_ENV') === 'development' ? $e->getMessage() : 'Internal server error.';
     errorResponse($msg, 500);
 }

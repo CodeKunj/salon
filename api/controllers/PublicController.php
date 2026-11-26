@@ -144,7 +144,10 @@ class PublicController {
     }
 
     public static function getSlots(): void {
-        $date = $_GET['date'] ?? date('Y-m-d');
+        $date = trim((string)($_GET['date'] ?? date('Y-m-d')));
+        if (!Validator::validateDate($date)) {
+            errorResponse('Please provide a valid appointment date (YYYY-MM-DD).', 422);
+        }
         $serviceIdsRaw = $_GET['services'] ?? '';
         $stylistId = !empty($_GET['stylist_id']) ? (int)$_GET['stylist_id'] : null;
         $customDuration = !empty($_GET['duration']) ? (int)$_GET['duration'] : 0;
@@ -191,7 +194,9 @@ class PublicController {
             errorResponse('Promo code usage limit reached.', 400);
         }
         if ($subtotal < (float)$promo['min_order_value']) {
-            errorResponse("Minimum order amount of $" . number_format($promo['min_order_value'], 2) . " required for this code.", 400);
+            $symStmt = $pdo->query("SELECT setting_value FROM settings WHERE setting_key = 'currency_symbol'");
+            $sym = $symStmt->fetchColumn() ?: '₹';
+            errorResponse("Minimum order amount of {$sym}" . number_format((float)$promo['min_order_value'], 2) . " required for this code.", 400);
         }
 
         $discount = 0.0;
@@ -238,12 +243,32 @@ class PublicController {
             errorResponse('Please fill in all required customer and appointment details.', 422);
         }
 
+        if (!Validator::validateDate($date)) {
+            errorResponse('Please provide a valid appointment date (YYYY-MM-DD).', 422);
+        }
+
+        if ($date < date('Y-m-d')) {
+            errorResponse('Appointments cannot be booked for past dates.', 422);
+        }
+
+        if (!Validator::validateTime($startTime)) {
+            errorResponse('Please select a valid appointment time slot.', 422);
+        }
+
         if (!Validator::validateEmail($email)) {
             errorResponse('Please provide a valid email address.', 422);
         }
 
         if (empty($serviceIds) && empty($packageId)) {
             errorResponse('Please select at least one service or package.', 422);
+        }
+
+        if ($stylistId) {
+            $stCheck = $pdo->prepare("SELECT id FROM stylists WHERE id = ? AND is_active = 1 LIMIT 1");
+            $stCheck->execute([$stylistId]);
+            if (!$stCheck->fetch()) {
+                errorResponse('Selected stylist is currently unavailable.', 422);
+            }
         }
 
         // Calculate items, prices, duration
@@ -293,11 +318,15 @@ class PublicController {
 
         // Calculate end time
         $startTimestamp = strtotime("{$date} {$startTime}");
+        if ($startTimestamp === false) {
+            errorResponse('Invalid appointment date or time provided.', 422);
+        }
         $endTimestamp = $startTimestamp + ($totalDuration * 60);
         $endTime = date('H:i:s', $endTimestamp);
 
-        // Apply promo discount if provided
+        // Check auto-confirm and currency/tax rules safely before transaction write
         $discountAmount = 0.0;
+        $promoIdToIncrement = null;
         if (!empty($promoCode)) {
             $pStmt = $pdo->prepare("SELECT * FROM promo_codes WHERE code = ? AND is_active = 1 LIMIT 1");
             $pStmt->execute([$promoCode]);
@@ -311,8 +340,7 @@ class PublicController {
                 } else {
                     $discountAmount = min($subtotal, (float)$promo['discount_value']);
                 }
-                // Increment promo usage
-                $pdo->prepare("UPDATE promo_codes SET times_used = times_used + 1 WHERE id = ?")->execute([$promo['id']]);
+                $promoIdToIncrement = (int)$promo['id'];
             }
         }
 
@@ -372,34 +400,48 @@ class PublicController {
         // Generate unique reference ID
         $reference = 'AURA-' . strtoupper(substr(md5(uniqid((string)mt_rand(), true)), 0, 6));
 
-        // Insert booking record
-        $insStmt = $pdo->prepare("INSERT INTO bookings (
-            booking_reference, customer_name, customer_email, customer_phone, stylist_id,
-            booking_date, start_time, end_time, total_duration, subtotal, discount_amount,
-            tax_amount, total_amount, deposit_amount, payment_mode, payment_status,
-            booking_status, promo_code, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $pdo->beginTransaction();
+        try {
+            if ($promoIdToIncrement) {
+                $pdo->prepare("UPDATE promo_codes SET times_used = times_used + 1 WHERE id = ?")->execute([$promoIdToIncrement]);
+            }
 
-        $insStmt->execute([
-            $reference, $name, $email, $phone, $stylistId,
-            $date, date('H:i:s', $startTimestamp), $endTime, $totalDuration, $subtotal, $discountAmount,
-            $taxAmount, $totalAmount, $depositAmount, $paymentMode, $paymentStatus,
-            $bookingStatus, $promoCode ?: null, $notes ?: null
-        ]);
+            // Insert booking record
+            $insStmt = $pdo->prepare("INSERT INTO bookings (
+                booking_reference, customer_name, customer_email, customer_phone, stylist_id,
+                booking_date, start_time, end_time, total_duration, subtotal, discount_amount,
+                tax_amount, total_amount, deposit_amount, payment_mode, payment_status,
+                booking_status, promo_code, notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
-        $bookingId = (int)$pdo->lastInsertId();
-
-        // Insert booking items
-        $itemStmt = $pdo->prepare("INSERT INTO booking_items (booking_id, service_id, package_id, item_name, price, duration_minutes) VALUES (?, ?, ?, ?, ?, ?)");
-        foreach ($bookingItems as $item) {
-            $itemStmt->execute([
-                $bookingId,
-                $item['service_id'],
-                $item['package_id'],
-                $item['item_name'],
-                $item['price'],
-                $item['duration_minutes']
+            $insStmt->execute([
+                $reference, $name, $email, $phone, $stylistId,
+                $date, date('H:i:s', $startTimestamp), $endTime, $totalDuration, $subtotal, $discountAmount,
+                $taxAmount, $totalAmount, $depositAmount, $paymentMode, $paymentStatus,
+                $bookingStatus, $promoCode ?: null, $notes ?: null
             ]);
+
+            $bookingId = (int)$pdo->lastInsertId();
+
+            // Insert booking items
+            $itemStmt = $pdo->prepare("INSERT INTO booking_items (booking_id, service_id, package_id, item_name, price, duration_minutes) VALUES (?, ?, ?, ?, ?, ?)");
+            foreach ($bookingItems as $item) {
+                $itemStmt->execute([
+                    $bookingId,
+                    $item['service_id'],
+                    $item['package_id'],
+                    $item['item_name'],
+                    $item['price'],
+                    $item['duration_minutes']
+                ]);
+            }
+
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
         }
 
         // Fetch assigned stylist name

@@ -3,6 +3,7 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { usePublic } from '../../context/PublicContext';
 import { useBooking } from '../../context/BookingContext';
 import CornerMarks from '../common/CornerMarks';
+import SafeImage from '../common/SafeImage';
 import { CursorScope, NivoraButton, TiltCard3D } from '../common/NivoraPrimitives';
 
 const DEFAULT_HERO_IMG =
@@ -81,8 +82,9 @@ export default function Hero() {
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 z-0"
       >
-        <img
+        <SafeImage
           src={hero?.hero_image || DEFAULT_HERO_IMG}
+          fallbackSrc={DEFAULT_HERO_IMG}
           alt=""
           className="h-full w-full object-cover object-center opacity-25 mix-blend-multiply saturate-110"
         />
@@ -121,9 +123,11 @@ export default function Hero() {
             <CornerMarks tl br size={10} thickness={2} color="text-[#B4563E]" />
             <TiltCard3D maxTilt={10} maxMove={12} hoverScale={1.04}>
               <div className="aspect-[0.76] w-full overflow-hidden bg-[#EAE0D2]">
-                <img
+                <SafeImage
                   src={leftPlate.image}
+                  fallbackSrc={FLANK_LEFT.image}
                   alt={leftPlate.title}
+                  fallbackLabel={leftPlate.title}
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
               </div>
@@ -156,9 +160,11 @@ export default function Hero() {
             <CornerMarks tr bl size={10} thickness={2} color="text-[#B4563E]" />
             <TiltCard3D maxTilt={10} maxMove={12} hoverScale={1.04}>
               <div className="aspect-[0.76] w-full overflow-hidden bg-[#EAE0D2]">
-                <img
+                <SafeImage
                   src={rightPlate.image}
+                  fallbackSrc={FLANK_RIGHT.image}
                   alt={rightPlate.title}
+                  fallbackLabel={rightPlate.title}
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
               </div>

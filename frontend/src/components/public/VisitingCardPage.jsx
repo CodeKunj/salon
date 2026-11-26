@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { usePublic } from '../../context/PublicContext';
 import { useBooking } from '../../context/BookingContext';
+import { useToast } from '../../context/ToastContext';
 import CornerMarks from '../common/CornerMarks';
 import QrCodeCanvas from '../common/QrCodeCanvas';
 import {
@@ -49,6 +50,7 @@ function getChannelIcon(id) {
 export default function VisitingCardPage({ onBackToSite, onOpenCustomerPortal }) {
   const { salon, hours } = usePublic();
   const { openBooking } = useBooking();
+  const { notifyError } = useToast();
   const [copied, setCopied] = useState(false);
   const [sharedFeedback, setSharedFeedback] = useState('');
 
@@ -79,11 +81,18 @@ export default function VisitingCardPage({ onBackToSite, onOpenCustomerPortal })
 
   const handleCopyLink = async () => {
     try {
-      await navigator.clipboard.writeText(cardUrl);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(cardUrl);
+      } else {
+        throw new Error('Clipboard unavailable');
+      }
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2200);
+      return true;
     } catch {
       setCopied(false);
+      notifyError('Unable to access clipboard automatically. Please copy the page URL from your address bar.');
+      return false;
     }
   };
 
@@ -96,13 +105,16 @@ export default function VisitingCardPage({ onBackToSite, onOpenCustomerPortal })
           url: cardUrl,
         });
         return;
-      } catch {
-        // User cancelled or share unsupported — fall back to clipboard
+      } catch (err) {
+        if (err?.name === 'AbortError') return;
+        // Share cancelled/unsupported — fall back to clipboard
       }
     }
-    await handleCopyLink();
-    setSharedFeedback('Card link copied to clipboard.');
-    window.setTimeout(() => setSharedFeedback(''), 2500);
+    const ok = await handleCopyLink();
+    if (ok) {
+      setSharedFeedback('Card link copied to clipboard.');
+      window.setTimeout(() => setSharedFeedback(''), 2500);
+    }
   };
 
   const handleDownloadVCard = () => {

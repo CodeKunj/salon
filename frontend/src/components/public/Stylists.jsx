@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { usePublic } from '../../context/PublicContext';
 import { useBooking } from '../../context/BookingContext';
 import CornerMarks from '../common/CornerMarks';
+import SafeImage from '../common/SafeImage';
 import { NivoraButton } from '../common/NivoraPrimitives';
 
 const FALLBACK_STYLISTS = [
@@ -79,9 +80,10 @@ function TeamCard({ stylist, onBook }) {
       />
 
       <div className="relative aspect-square w-full overflow-hidden bg-[#EAE0D2]">
-        <img
+        <SafeImage
           src={stylist.avatar_url || stylist.image_url}
           alt={stylist.name}
+          fallbackLabel={stylist.name}
           loading="lazy"
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />

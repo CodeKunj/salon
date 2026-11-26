@@ -4,12 +4,16 @@ import { Plus, Edit2, Trash2, Star, Clock } from 'lucide-react';
 import { api } from '../../services/api';
 import { usePublic } from '../../context/PublicContext';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
+import SafeImage from '../common/SafeImage';
 
 export default function AdminStylists() {
   const { refresh } = usePublic();
   const { permissions } = useAuth();
+  const { notifyError, notifySuccess } = useToast();
   const [stylists, setStylists] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   // Edit Modal State
   const [editingStylist, setEditingStylist] = useState(null);
@@ -18,10 +22,11 @@ export default function AdminStylists() {
   const loadStylists = async () => {
     try {
       setLoading(true);
+      setLoadError('');
       const res = await api.getStaff();
       setStylists(res.data || []);
     } catch (err) {
-      console.error('Failed to load stylists:', err);
+      setLoadError(err.message || 'Failed to load stylist schedules.');
     } finally {
       setLoading(false);
     }
@@ -69,10 +74,11 @@ export default function AdminStylists() {
       setSaving(true);
       await api.saveStaff(editingStylist);
       setEditingStylist(null);
+      notifySuccess('Stylist profile saved.');
       loadStylists();
       refresh();
     } catch (err) {
-      alert(err.message || 'Failed to save stylist.');
+      notifyError(err.message || 'Failed to save stylist.');
     } finally {
       setSaving(false);
     }
@@ -82,10 +88,11 @@ export default function AdminStylists() {
     if (!window.confirm('Delete this stylist profile?')) return;
     try {
       await api.deleteStaff(id);
+      notifySuccess('Stylist deleted.');
       loadStylists();
       refresh();
     } catch (err) {
-      alert(err.message);
+      notifyError(err.message || 'Failed to delete stylist.');
     }
   };
 
@@ -132,15 +139,29 @@ export default function AdminStylists() {
         <div className="p-8 text-center text-xs text-salon-muted">Loading artist schedules...</div>
       )}
 
+      {loadError && (
+        <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-700 flex flex-wrap items-center justify-between gap-3">
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={loadStylists}
+            className="px-3.5 py-1.5 rounded-full bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Stylist Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {stylists.map((st) => (
           <div key={st.id} className="bg-salon-card rounded-3xl border border-salon-border shadow-xs overflow-hidden flex flex-col justify-between">
             <div>
               <div className="p-6 flex items-start gap-4 pb-4">
-                <img
+                <SafeImage
                   src={st.avatar_url || 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80'}
                   alt={st.name}
+                  fallbackLabel={st.name}
                   loading="lazy"
                   className="w-16 h-16 rounded-2xl object-cover border border-salon-border shadow-xs flex-shrink-0"
                 />

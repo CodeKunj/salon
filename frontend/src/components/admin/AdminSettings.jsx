@@ -8,6 +8,7 @@ import {
 import { api } from '../../services/api';
 import { usePublic } from '../../context/PublicContext';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import {
   canAccessSettingsModule,
   getAllowedSettingsModules,
@@ -18,6 +19,7 @@ import {
 export default function AdminSettings({ activeModule: propModule, onModuleChange }) {
   const { payments, refresh } = usePublic();
   const { user, permissions } = useAuth();
+  const { notifyError, notifySuccess } = useToast();
 
   const [localModule, setLocalModule] = useState('general');
   const allowedModuleIds = getAllowedSettingsModules(user?.role);
@@ -41,6 +43,7 @@ export default function AdminSettings({ activeModule: propModule, onModuleChange
   const [usersList, setUsersList] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [ogImageMode, setOgImageMode] = useState('url');
@@ -73,6 +76,7 @@ export default function AdminSettings({ activeModule: propModule, onModuleChange
   const loadAllSettings = useCallback(async () => {
     try {
       setLoading(true);
+      setLoadError('');
       const res = await api.getSettingsBootstrap();
       const payload = res?.data || {};
       setSettings(payload.settings || {});
@@ -82,7 +86,7 @@ export default function AdminSettings({ activeModule: propModule, onModuleChange
       setUsersList(payload.users || []);
       setAuditLogs(payload.audit_logs || []);
     } catch (err) {
-      console.error('Failed to load settings:', err);
+      setLoadError(err.message || 'Failed to load settings modules.');
     } finally {
       setLoading(false);
     }
@@ -153,10 +157,11 @@ export default function AdminSettings({ activeModule: propModule, onModuleChange
       setMessage('');
       await api.updateSettingsGroup(groupName, settings[groupName] || {});
       setMessage(`Module ${groupName} updated successfully.`);
+      notifySuccess('Settings saved.');
       refresh();
       setTimeout(() => setMessage(''), 4000);
     } catch (err) {
-      alert(err.message || 'Failed to update settings group.');
+      notifyError(err.message || 'Failed to update settings group.');
     } finally {
       setSaving(false);
     }
@@ -168,10 +173,11 @@ export default function AdminSettings({ activeModule: propModule, onModuleChange
       setMessage('');
       await api.updateHours(hours);
       setMessage('Weekly hours updated successfully.');
+      notifySuccess('Weekly business hours saved.');
       refresh();
       setTimeout(() => setMessage(''), 4000);
     } catch (err) {
-      alert(err.message || 'Failed to update hours.');
+      notifyError(err.message || 'Failed to update hours.');
     } finally {
       setSaving(false);
     }
@@ -187,11 +193,12 @@ export default function AdminSettings({ activeModule: propModule, onModuleChange
     try {
       await api.saveClosure(closureModal);
       setClosureModal(null);
+      notifySuccess('Special closure saved.');
       const c = await api.getClosures();
       setClosures(c.data || []);
       refresh();
     } catch (err) {
-      alert(err.message);
+      notifyError(err.message || 'Failed to save closure.');
     }
   };
 
@@ -199,11 +206,12 @@ export default function AdminSettings({ activeModule: propModule, onModuleChange
     if (!window.confirm('Delete closure?')) return;
     try {
       await api.deleteClosure(id);
+      notifySuccess('Closure deleted.');
       const c = await api.getClosures();
       setClosures(c.data || []);
       refresh();
     } catch (err) {
-      alert(err.message);
+      notifyError(err.message || 'Failed to delete closure.');
     }
   };
 
@@ -213,11 +221,12 @@ export default function AdminSettings({ activeModule: propModule, onModuleChange
     try {
       await api.savePromo(promoModal);
       setPromoModal(null);
+      notifySuccess('Promo code saved.');
       const p = await api.getPromos();
       setPromos(p.data || []);
       refresh();
     } catch (err) {
-      alert(err.message);
+      notifyError(err.message || 'Failed to save promo code.');
     }
   };
 
@@ -225,11 +234,12 @@ export default function AdminSettings({ activeModule: propModule, onModuleChange
     if (!window.confirm('Delete promo code?')) return;
     try {
       await api.deletePromo(id);
+      notifySuccess('Promo code deleted.');
       const p = await api.getPromos();
       setPromos(p.data || []);
       refresh();
     } catch (err) {
-      alert(err.message);
+      notifyError(err.message || 'Failed to delete promo code.');
     }
   };
 
@@ -239,10 +249,11 @@ export default function AdminSettings({ activeModule: propModule, onModuleChange
     try {
       await api.saveUser(userModal);
       setUserModal(null);
+      notifySuccess('Staff user saved.');
       const u = await api.getUsers();
       setUsersList(u.data || []);
     } catch (err) {
-      alert(err.message);
+      notifyError(err.message || 'Failed to save user.');
     }
   };
 
@@ -250,15 +261,31 @@ export default function AdminSettings({ activeModule: propModule, onModuleChange
     if (!window.confirm('Delete this user?')) return;
     try {
       await api.deleteUser(id);
+      notifySuccess('User deleted.');
       const u = await api.getUsers();
       setUsersList(u.data || []);
     } catch (err) {
-      alert(err.message);
+      notifyError(err.message || 'Failed to delete user.');
     }
   };
 
   if (loading) {
     return <div className="p-12 text-center text-xs text-salon-muted">Loading settings modules...</div>;
+  }
+
+  if (loadError) {
+    return (
+      <div className="p-6 rounded-3xl bg-red-50 border border-red-200 text-xs text-red-700 flex flex-wrap items-center justify-between gap-3">
+        <span>{loadError}</span>
+        <button
+          type="button"
+          onClick={loadAllSettings}
+          className="px-4 py-2 rounded-full bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors"
+        >
+          Retry Loading Settings
+        </button>
+      </div>
+    );
   }
 
   const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];

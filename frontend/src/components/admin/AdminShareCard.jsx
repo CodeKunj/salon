@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { usePublic } from '../../context/PublicContext';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import CornerMarks from '../common/CornerMarks';
 import QrCodeCanvas from '../common/QrCodeCanvas';
 import {
@@ -22,6 +23,7 @@ import {
 export default function AdminShareCard({ onOpenCard, onNavigateSettings }) {
   const { salon } = usePublic();
   const { permissions } = useAuth();
+  const { notifyError, notifySuccess } = useToast();
 
   const [qrMode, setQrMode] = useState('card');
   const [copied, setCopied] = useState(false);
@@ -92,11 +94,17 @@ export default function AdminShareCard({ onOpenCard, onNavigateSettings }) {
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(activeQrUrl);
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(activeQrUrl);
+      } else {
+        throw new Error('Clipboard unavailable');
+      }
       setCopied(true);
+      notifySuccess('Link copied to clipboard.');
       window.setTimeout(() => setCopied(false), 2200);
     } catch {
       setCopied(false);
+      notifyError('Unable to copy link automatically. Please copy it manually.');
     }
   };
 

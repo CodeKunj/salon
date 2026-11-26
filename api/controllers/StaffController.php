@@ -49,40 +49,59 @@ class StaffController {
         if (empty($name)) {
             errorResponse('Stylist name is required.', 422);
         }
-
-        if ($id) {
-            $stmt = $pdo->prepare("UPDATE stylists SET name = ?, role_title = ?, bio = ?, avatar_url = ?, commission_pct = ?, is_active = ?, sort_order = ? WHERE id = ?");
-            $stmt->execute([$name, $roleTitle, $bio, $avatarUrl, $commissionPct, $isActive, $sortOrder, $id]);
-            Auth::logAudit($user['id'], 'STYLIST_UPDATED', 'stylists', (string)$id, "Stylist {$name} updated");
-        } else {
-            $stmt = $pdo->prepare("INSERT INTO stylists (name, role_title, bio, avatar_url, commission_pct, is_active, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$name, $roleTitle, $bio, $avatarUrl, $commissionPct, $isActive, $sortOrder]);
-            $id = (int)$pdo->lastInsertId();
-
-            // Default weekly schedule for new stylist (Mon-Sat 9-19)
-            $schStmt = $pdo->prepare("INSERT INTO stylist_schedules (stylist_id, day_of_week, start_time, end_time, break_start, break_end, is_working) VALUES (?, ?, ?, ?, ?, ?, ?)");
-            for ($d = 0; $d <= 6; $d++) {
-                $isWorking = ($d === 0) ? 0 : 1;
-                $schStmt->execute([$id, $d, '09:00:00', '19:00:00', '13:00:00', '14:00:00', $isWorking]);
-            }
-
-            Auth::logAudit($user['id'], 'STYLIST_CREATED', 'stylists', (string)$id, "Stylist {$name} created");
+        if ($commissionPct < 0 || $commissionPct > 100) {
+            errorResponse('Commission percentage must be between 0 and 100.', 422);
         }
 
-        // If schedules provided, update them
-        if (!empty($schedules)) {
-            $upSch = $pdo->prepare("UPDATE stylist_schedules SET start_time = ?, end_time = ?, break_start = ?, break_end = ?, is_working = ? WHERE stylist_id = ? AND day_of_week = ?");
-            foreach ($schedules as $s) {
-                $upSch->execute([
-                    $s['start_time'] ?? '09:00:00',
-                    $s['end_time'] ?? '19:00:00',
-                    $s['break_start'] ?? '13:00:00',
-                    $s['break_end'] ?? '14:00:00',
-                    isset($s['is_working']) ? (int)$s['is_working'] : 1,
-                    $id,
-                    (int)$s['day_of_week']
-                ]);
+        $pdo->beginTransaction();
+        try {
+            if ($id) {
+                $exists = $pdo->prepare("SELECT id FROM stylists WHERE id = ? LIMIT 1");
+                $exists->execute([$id]);
+                if (!$exists->fetch()) {
+                    $pdo->rollBack();
+                    errorResponse('Stylist not found.', 404);
+                }
+                $stmt = $pdo->prepare("UPDATE stylists SET name = ?, role_title = ?, bio = ?, avatar_url = ?, commission_pct = ?, is_active = ?, sort_order = ? WHERE id = ?");
+                $stmt->execute([$name, $roleTitle, $bio, $avatarUrl, $commissionPct, $isActive, $sortOrder, $id]);
+                Auth::logAudit($user['id'], 'STYLIST_UPDATED', 'stylists', (string)$id, "Stylist {$name} updated");
+            } else {
+                $stmt = $pdo->prepare("INSERT INTO stylists (name, role_title, bio, avatar_url, commission_pct, is_active, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$name, $roleTitle, $bio, $avatarUrl, $commissionPct, $isActive, $sortOrder]);
+                $id = (int)$pdo->lastInsertId();
+
+                // Default weekly schedule for new stylist (Mon-Sat 9-19)
+                $schStmt = $pdo->prepare("INSERT INTO stylist_schedules (stylist_id, day_of_week, start_time, end_time, break_start, break_end, is_working) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                for ($d = 0; $d <= 6; $d++) {
+                    $isWorking = ($d === 0) ? 0 : 1;
+                    $schStmt->execute([$id, $d, '09:00:00', '19:00:00', '13:00:00', '14:00:00', $isWorking]);
+                }
+
+                Auth::logAudit($user['id'], 'STYLIST_CREATED', 'stylists', (string)$id, "Stylist {$name} created");
             }
+
+            // If schedules provided, update them
+            if (!empty($schedules)) {
+                $upSch = $pdo->prepare("UPDATE stylist_schedules SET start_time = ?, end_time = ?, break_start = ?, break_end = ?, is_working = ? WHERE stylist_id = ? AND day_of_week = ?");
+                foreach ($schedules as $s) {
+                    $upSch->execute([
+                        $s['start_time'] ?? '09:00:00',
+                        $s['end_time'] ?? '19:00:00',
+                        $s['break_start'] ?? '13:00:00',
+                        $s['break_end'] ?? '14:00:00',
+                        isset($s['is_working']) ? (int)$s['is_working'] : 1,
+                        $id,
+                        (int)$s['day_of_week']
+                    ]);
+                }
+            }
+
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
         }
 
         jsonResponse(['id' => $id, 'name' => $name], 200, 'Stylist saved');
@@ -93,6 +112,9 @@ class StaffController {
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare("DELETE FROM stylists WHERE id = ?");
         $stmt->execute([$id]);
+        if ($stmt->rowCount() === 0) {
+            errorResponse('Stylist not found.', 404);
+        }
         Auth::logAudit($user['id'], 'STYLIST_DELETED', 'stylists', (string)$id, "Stylist #{$id} deleted");
         jsonResponse(null, 200, 'Stylist deleted');
     }

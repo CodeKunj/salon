@@ -14,17 +14,19 @@ export default function AdminOverview({ onNavigate }) {
   const [stats, setStats] = useState(null);
   const [recentBookings, setRecentBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setLoadError('');
       const res = await api.getBookings({ limit: 6 });
       if (res?.data) {
         setRecentBookings(res.data.bookings || []);
         setStats(res.data.stats || {});
       }
     } catch (err) {
-      console.error('Failed to load dashboard:', err);
+      setLoadError(err.message || 'Failed to load dashboard overview.');
     } finally {
       setLoading(false);
     }
@@ -66,6 +68,19 @@ export default function AdminOverview({ onNavigate }) {
           </button>
         )}
       </div>
+
+      {loadError && (
+        <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-700 flex flex-wrap items-center justify-between gap-3">
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={fetchDashboardData}
+            className="px-3.5 py-1.5 rounded-full bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* 4 Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">

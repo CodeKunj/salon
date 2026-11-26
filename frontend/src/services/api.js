@@ -2,6 +2,20 @@
 
 function resolveApiBase() {
   if (typeof window === 'undefined') return '/api';
+  if (typeof document !== 'undefined') {
+    const modScript = document.querySelector(
+      'script[type="module"][src*="assets/"], script[type="module"][src*="src/main.jsx"]'
+    );
+    if (modScript?.src) {
+      try {
+        const u = new URL(modScript.src, window.location.href);
+        const mountBase = u.pathname.replace(/\/(assets|src)\/.*$/i, '').replace(/\/+$/, '');
+        return `${mountBase}/api`;
+      } catch {
+        // fallback below
+      }
+    }
+  }
   const cleanPath = window.location.pathname
     .replace(/\/index\.html$/i, '')
     .replace(/\/(admin|account|my-bookings|login|register|card|connect|share)(\/.*)?$/i, '')
@@ -13,12 +27,45 @@ const API_BASE = resolveApiBase();
 
 function getAuthHeader(authScope = 'staff') {
   const storageKey = authScope === 'customer' ? 'ritiverse_customer_token' : 'aura_auth_token';
-  const token = localStorage.getItem(storageKey);
-  return token ? { Authorization: `Bearer ${token}`, 'X-Auth-Token': token } : {};
+  try {
+    const token = localStorage.getItem(storageKey);
+    return token ? { Authorization: `Bearer ${token}`, 'X-Auth-Token': token } : {};
+  } catch {
+    return {};
+  }
+}
+
+function getHttpStatusFallbackMessage(status) {
+  switch (status) {
+    case 400:
+      return 'Invalid request. Please review your input and try again.';
+    case 401:
+      return 'Your session has expired. Please sign in again.';
+    case 403:
+      return 'You do not have permission to perform this action.';
+    case 404:
+      return 'The requested resource was not found.';
+    case 409:
+      return 'A conflicting record already exists or is currently in use.';
+    case 413:
+      return 'Uploaded file or request is larger than the server allows.';
+    case 422:
+      return 'Please check the highlighted details and try again.';
+    case 429:
+      return 'Too many requests right now. Please wait a moment and retry.';
+    case 502:
+    case 503:
+    case 504:
+      return `The studio server is temporarily unavailable (${status}). Please try again shortly.`;
+    default:
+      return status >= 500
+        ? 'An unexpected server error occurred. Please try again.'
+        : `Request failed with status ${status}.`;
+  }
 }
 
 async function request(endpoint, options = {}) {
-  const { authScope = 'staff', headers: customHeaders, ...fetchOptions } = options;
+  const { authScope = 'staff', headers: customHeaders, timeout = 15000, ...fetchOptions } = options;
   const url = `${API_BASE}${endpoint}`;
   const isFormData = typeof FormData !== 'undefined' && fetchOptions.body instanceof FormData;
   const headers = {
@@ -27,9 +74,35 @@ async function request(endpoint, options = {}) {
     ...customHeaders,
   };
 
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    const offlineErr = new Error('You appear to be offline. Please check your internet connection.');
+    offlineErr.isNetworkError = true;
+    offlineErr.status = 0;
+    throw offlineErr;
+  }
+
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timeoutId =
+    controller && timeout > 0
+      ? window.setTimeout(() => controller.abort(), timeout)
+      : null;
+
   try {
-    const res = await fetch(url, { ...fetchOptions, headers });
-    const data = await res.json().catch(() => ({}));
+    const res = await fetch(url, {
+      ...fetchOptions,
+      headers,
+      signal: controller ? controller.signal : fetchOptions.signal,
+    });
+
+    const rawText = await res.text();
+    let data = {};
+    if (rawText) {
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        data = {};
+      }
+    }
 
     if (!res.ok) {
       if (res.status === 401 && typeof window !== 'undefined') {
@@ -39,7 +112,8 @@ async function request(endpoint, options = {}) {
           window.dispatchEvent(new CustomEvent('aura:unauthorized'));
         }
       }
-      const errorMsg = data.message || `Request failed with status ${res.status}`;
+      const fieldError = Array.isArray(data.errors) && data.errors.length > 0 ? data.errors.join(' ') : '';
+      const errorMsg = data.message || fieldError || getHttpStatusFallbackMessage(res.status);
       const err = new Error(errorMsg);
       err.status = res.status;
       err.errors = data.errors || [];
@@ -48,8 +122,24 @@ async function request(endpoint, options = {}) {
 
     return data;
   } catch (err) {
-    console.error(`API Error [${options.method || 'GET'} ${endpoint}]:`, err);
+    if (err?.name === 'AbortError') {
+      const timeoutErr = new Error('The request timed out. Please check your connection and try again.');
+      timeoutErr.isTimeout = true;
+      timeoutErr.status = 408;
+      throw timeoutErr;
+    }
+    if (!err?.status && (err?.name === 'TypeError' || /Failed to fetch|NetworkError|Load failed/i.test(err?.message || ''))) {
+      const netErr = new Error('Unable to reach the studio server. Please check your connection and retry.');
+      netErr.isNetworkError = true;
+      netErr.status = 0;
+      throw netErr;
+    }
+    console.error(`API Error [${fetchOptions.method || 'GET'} ${endpoint}]:`, err);
     throw err;
+  } finally {
+    if (timeoutId !== null) {
+      window.clearTimeout(timeoutId);
+    }
   }
 }
 

@@ -10,11 +10,13 @@ import { usePublic } from '../../context/PublicContext';
 import { useBooking } from '../../context/BookingContext';
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import CornerMarks from '../common/CornerMarks';
+import SafeImage from '../common/SafeImage';
 import { buildWhatsAppUrl } from '../../utils/salonLinks';
 
 export default function BookingModal({ onOpenCustomerPortal }) {
   const { categories, services, packages, stylists, payments, salon } = usePublic();
   const { isCustomerAuthenticated, customerUser } = useCustomerAuth();
+  const [step3Error, setStep3Error] = useState('');
   const {
     isOpen,
     step,
@@ -33,6 +35,8 @@ export default function BookingModal({ onOpenCustomerPortal }) {
     availableSlots,
     slotsLoading,
     slotsMessage,
+    slotsError,
+    retryLoadSlots,
     customer,
     setCustomer,
     promoCode,
@@ -338,9 +342,10 @@ export default function BookingModal({ onOpenCustomerPortal }) {
                             : 'bg-white hover:bg-[#FAFAFA] border-black/[0.08]'
                         }`}
                       >
-                        <img
+                        <SafeImage
                           src={st.avatar_url || 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=100&q=80'}
                           alt={st.name}
+                          fallbackLabel={st.name}
                           className="w-8 h-8 rounded-full object-cover mb-1.5"
                         />
                         <div className="text-xs font-semibold text-[#111827] truncate">{st.name}</div>
@@ -381,6 +386,17 @@ export default function BookingModal({ onOpenCustomerPortal }) {
                     <div className="py-8 text-center text-xs font-mono text-[#64748B] flex items-center justify-center gap-2">
                       <div className="w-4 h-4 border-2 border-[#B4563E] border-t-transparent rounded-full animate-spin" />
                       <span>Calculating real-time atelier slots...</span>
+                    </div>
+                  ) : slotsError ? (
+                    <div className="p-4 bg-red-50 border border-red-200 text-xs text-red-700 font-mono flex flex-wrap items-center justify-between gap-2">
+                      <span>{slotsError}</span>
+                      <button
+                        type="button"
+                        onClick={retryLoadSlots}
+                        className="px-3 py-1 rounded-full bg-red-600 text-white text-[11px] font-semibold hover:bg-red-700"
+                      >
+                        Retry Slots
+                      </button>
                     </div>
                   ) : slotsMessage ? (
                     <div className="p-4 bg-amber-50 border border-amber-200 text-xs text-amber-800 font-mono">
@@ -498,6 +514,13 @@ export default function BookingModal({ onOpenCustomerPortal }) {
                     />
                   </div>
                 </div>
+
+                {step3Error && (
+                  <div className="p-3 bg-red-50 border border-red-200 text-xs font-mono text-red-700 flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{step3Error}</span>
+                  </div>
+                )}
 
                 {/* Promo Code Box */}
                 <div className="p-4 border border-black/[0.08] bg-[#FAFAFA] space-y-2">
@@ -850,9 +873,27 @@ export default function BookingModal({ onOpenCustomerPortal }) {
 
                 {step === 3 && (
                   <button
-                    disabled={!customer.name || !customer.email || !customer.phone}
-                    onClick={() => setStep(4)}
-                    className="px-6 py-2.5 rounded-full bg-[#B4563E] hover:bg-[#933E29] text-[#FFFDF8] text-xs font-mono uppercase tracking-wider font-semibold transition-all disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center gap-2 shadow-glow-pink"
+                    type="button"
+                    onClick={() => {
+                      const cleanName = customer.name.trim();
+                      const cleanEmail = customer.email.trim();
+                      const phoneDigits = customer.phone.replace(/\D/g, '');
+                      if (cleanName.length < 2) {
+                        setStep3Error('Please enter your full name (at least 2 characters).');
+                        return;
+                      }
+                      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+                        setStep3Error('Please enter a valid email address.');
+                        return;
+                      }
+                      if (phoneDigits.length < 7) {
+                        setStep3Error('Please enter a valid phone or WhatsApp number.');
+                        return;
+                      }
+                      setStep3Error('');
+                      setStep(4);
+                    }}
+                    className="px-6 py-2.5 rounded-full bg-[#B4563E] hover:bg-[#933E29] text-[#FFFDF8] text-xs font-mono uppercase tracking-wider font-semibold transition-all inline-flex items-center gap-2 shadow-glow-pink"
                   >
                     <span>Review &amp; Pay</span>
                     <ArrowRight className="w-3.5 h-3.5" />

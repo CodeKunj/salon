@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { usePublic } from '../../context/PublicContext';
 import { buildAdminUrl, canAccessAdminTab } from '../../utils/adminRouter';
+import SafeImage from '../common/SafeImage';
 
 export default function AdminLayout({ activeTab, onSelectTab, onTabChange, onExitAdmin, children }) {
   const { user, logout, hasRole } = useAuth();
@@ -76,9 +77,10 @@ export default function AdminLayout({ activeTab, onSelectTab, onTabChange, onExi
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           {/* User Card */}
           <div className="p-4 mx-4 my-4 rounded-2xl bg-[#FFFDF8]/[0.05] border border-[#D6A984]/20 flex items-center gap-3">
-            <img
+            <SafeImage
               src={user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80'}
               alt={user?.name}
+              fallbackLabel={user?.name}
               className="w-10 h-10 rounded-full object-cover border border-[#D6A984]/55 flex-shrink-0"
             />
             <div className="overflow-hidden">

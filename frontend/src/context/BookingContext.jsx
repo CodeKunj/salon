@@ -28,6 +28,8 @@ export function BookingProvider({ children }) {
   const [availableSlots, setAvailableSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [slotsMessage, setSlotsMessage] = useState('');
+  const [slotsError, setSlotsError] = useState('');
+  const [slotsReloadKey, setSlotsReloadKey] = useState(0);
 
   // Customer Details
   const [customer, setCustomer] = useState({
@@ -86,6 +88,7 @@ export function BookingProvider({ children }) {
       try {
         setSlotsLoading(true);
         setSlotsMessage('');
+        setSlotsError('');
         const srvIds = selectedPackage ? [] : selectedServices.map(s => s.id);
         const dur = selectedPackage ? selectedPackage.duration_minutes : totalDuration;
         const styId = selectedStylist ? selectedStylist.id : null;
@@ -99,14 +102,16 @@ export function BookingProvider({ children }) {
         }
       } catch (err) {
         console.error('Failed to fetch available slots:', err);
-        setSlotsMessage('Could not retrieve slots for selected date.');
+        setSlotsError(err.message || 'Could not retrieve slots for the selected date.');
       } finally {
         setSlotsLoading(false);
       }
     };
 
     fetchSlots();
-  }, [isOpen, selectedDate, selectedServices, selectedPackage, selectedStylist]);
+  }, [isOpen, selectedDate, selectedServices, selectedPackage, selectedStylist, slotsReloadKey]);
+
+  const retryLoadSlots = () => setSlotsReloadKey((k) => k + 1);
 
   // Prefill guest details whenever a client signs in
   useEffect(() => {
@@ -290,6 +295,8 @@ export function BookingProvider({ children }) {
         availableSlots,
         slotsLoading,
         slotsMessage,
+        slotsError,
+        retryLoadSlots,
         customer,
         setCustomer,
         promoCode,

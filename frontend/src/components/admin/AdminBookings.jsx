@@ -6,12 +6,15 @@ import {
 import { api } from '../../services/api';
 import { usePublic } from '../../context/PublicContext';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 
 export default function AdminBookings() {
   const { stylists, services, payments } = usePublic();
   const { permissions } = useAuth();
+  const { notifyError, notifySuccess } = useToast();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
@@ -35,6 +38,7 @@ export default function AdminBookings() {
   const fetchBookings = async () => {
     try {
       setLoading(true);
+      setLoadError('');
       const params = {};
       if (searchTerm) params.search = searchTerm;
       if (statusFilter) params.status = statusFilter;
@@ -44,7 +48,7 @@ export default function AdminBookings() {
         setBookings(res.data.bookings || []);
       }
     } catch (err) {
-      console.error('Failed to load bookings:', err);
+      setLoadError(err.message || 'Failed to load appointments.');
     } finally {
       setLoading(false);
     }
@@ -79,9 +83,10 @@ export default function AdminBookings() {
         notes: modalNotes
       });
       setEditingBooking(null);
+      notifySuccess('Appointment updated.');
       fetchBookings();
     } catch (err) {
-      alert(err.message || 'Failed to update booking status.');
+      notifyError(err.message || 'Failed to update booking status.');
     } finally {
       setUpdating(false);
     }
@@ -89,6 +94,10 @@ export default function AdminBookings() {
 
   const handleCreateWalkin = async (e) => {
     e.preventDefault();
+    if (!walkinServices || walkinServices.length === 0) {
+      notifyError('Please select at least one service for walk-in registration.');
+      return;
+    }
     try {
       setWalkinLoading(true);
       await api.createWalkIn({
@@ -98,9 +107,10 @@ export default function AdminBookings() {
         service_ids: walkinServices
       });
       setWalkinOpen(false);
+      notifySuccess('Walk-in appointment registered.');
       fetchBookings();
     } catch (err) {
-      alert(err.message || 'Failed to register walk-in.');
+      notifyError(err.message || 'Failed to register walk-in.');
     } finally {
       setWalkinLoading(false);
     }
@@ -110,9 +120,10 @@ export default function AdminBookings() {
     if (!window.confirm('Are you sure you want to delete this reservation?')) return;
     try {
       await api.deleteBooking(id);
+      notifySuccess('Reservation deleted.');
       fetchBookings();
     } catch (err) {
-      alert(err.message || 'Failed to delete booking.');
+      notifyError(err.message || 'Failed to delete booking.');
     }
   };
 
@@ -154,6 +165,19 @@ export default function AdminBookings() {
           )}
         </div>
       </div>
+
+      {loadError && (
+        <div className="p-4 rounded-2xl bg-red-50 border border-red-200 text-xs text-red-700 flex flex-wrap items-center justify-between gap-3">
+          <span>{loadError}</span>
+          <button
+            type="button"
+            onClick={fetchBookings}
+            className="px-3.5 py-1.5 rounded-full bg-red-600 text-white font-semibold hover:bg-red-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Filters Bar */}
       <div className="p-4 rounded-2xl bg-salon-card border border-salon-border shadow-xs flex flex-col md:flex-row gap-4 items-center justify-between">

@@ -52,6 +52,9 @@ class ServicesController {
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare("DELETE FROM categories WHERE id = ?");
         $stmt->execute([$id]);
+        if ($stmt->rowCount() === 0) {
+            errorResponse('Category not found.', 404);
+        }
         Auth::logAudit($user['id'], 'CATEGORY_DELETED', 'categories', (string)$id, "Category #{$id} deleted");
         jsonResponse(null, 200, 'Category deleted');
     }
@@ -90,6 +93,12 @@ class ServicesController {
         if (empty($name) || $basePrice <= 0) {
             errorResponse('Service name and valid base price are required.', 422);
         }
+        if ($duration <= 0) {
+            errorResponse('Service duration must be greater than 0 minutes.', 422);
+        }
+        if ($offerPrice !== null && $offerPrice >= $basePrice) {
+            errorResponse('Offer price must be lower than base price.', 422);
+        }
 
         if ($id) {
             $stmt = $pdo->prepare("UPDATE services SET category_id = ?, name = ?, slug = ?, description = ?, duration_minutes = ?, base_price = ?, offer_price = ?, image_url = ?, is_featured = ?, is_taxable = ?, is_active = ?, sort_order = ? WHERE id = ?");
@@ -110,6 +119,9 @@ class ServicesController {
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare("DELETE FROM services WHERE id = ?");
         $stmt->execute([$id]);
+        if ($stmt->rowCount() === 0) {
+            errorResponse('Service not found.', 404);
+        }
         Auth::logAudit($user['id'], 'SERVICE_DELETED', 'services', (string)$id, "Service #{$id} deleted");
         jsonResponse(null, 200, 'Service deleted');
     }
@@ -163,6 +175,9 @@ class ServicesController {
         $pdo = Database::getConnection();
         $stmt = $pdo->prepare("DELETE FROM packages WHERE id = ?");
         $stmt->execute([$id]);
+        if ($stmt->rowCount() === 0) {
+            errorResponse('Package not found.', 404);
+        }
         Auth::logAudit($user['id'], 'PACKAGE_DELETED', 'packages', (string)$id, "Package #{$id} deleted");
         jsonResponse(null, 200, 'Package deleted');
     }
