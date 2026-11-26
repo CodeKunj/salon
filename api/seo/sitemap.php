@@ -56,6 +56,12 @@ echo '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
   </url>
+  <url>
+    <loc><?= htmlspecialchars($baseUrl) ?>/privacy-policy</loc>
+    <lastmod><?= date('Y-m-d') ?></lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
 <?php foreach ($services as $srv): ?>
   <url>
     <loc><?= htmlspecialchars($baseUrl) ?>/#service-<?= htmlspecialchars($srv['slug']) ?></loc>

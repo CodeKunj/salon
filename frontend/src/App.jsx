@@ -12,6 +12,7 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 const PublicSite = lazy(() => import('./components/public/PublicSite'));
 const BookingModal = lazy(() => import('./components/public/BookingModal'));
 const VisitingCardPage = lazy(() => import('./components/public/VisitingCardPage'));
+const PrivacyPolicyPage = lazy(() => import('./components/public/PrivacyPolicyPage'));
 const WhatsAppFloat = lazy(() => import('./components/common/WhatsAppFloat'));
 
 // Admin & Customer Components (lazy-loaded so storefront & inactive consoles stay fast)
@@ -48,6 +49,7 @@ import {
   navigateToAdminRoute,
   navigateToCardRoute,
   navigateToCustomerRoute,
+  navigateToPrivacyRoute,
   navigateToPublicRoute,
   parseAppRoute,
   sanitizeSubTab,
@@ -80,7 +82,7 @@ function SalonApp() {
 
   // Keep <base data-admin-base> and legacy hash URLs synced cleanly
   useEffect(() => {
-    syncAdminDocumentBase(route.isAdmin || route.isCustomer || route.isCard);
+    syncAdminDocumentBase(route.isAdmin || route.isCustomer || route.isCard || route.isPrivacy);
     if (route.isAdmin && route.fromHash) {
       navigateToAdminRoute(route.tab, route.subTab, { replace: true });
     } else if (route.isCustomer && route.fromHash) {
@@ -90,14 +92,16 @@ function SalonApp() {
       });
     } else if (route.isCard && route.fromHash) {
       navigateToCardRoute({ replace: true });
+    } else if (route.isPrivacy && route.fromHash) {
+      navigateToPrivacyRoute({ replace: true });
     }
-  }, [route.isAdmin, route.isCustomer, route.isCard, route.fromHash, route.tab, route.subTab, route.accountTab, route.explicitAuth, route.authMode]);
+  }, [route.isAdmin, route.isCustomer, route.isCard, route.isPrivacy, route.fromHash, route.tab, route.subTab, route.accountTab, route.explicitAuth, route.authMode]);
 
   // Listen to browser Back/Forward (popstate) and hashchange
   useEffect(() => {
     const syncFromBrowser = () => {
       const parsed = parseAppRoute();
-      syncAdminDocumentBase(parsed.isAdmin || parsed.isCustomer || parsed.isCard);
+      syncAdminDocumentBase(parsed.isAdmin || parsed.isCustomer || parsed.isCard || parsed.isPrivacy);
       if (parsed.isAdmin && parsed.fromHash) {
         navigateToAdminRoute(parsed.tab, parsed.subTab, { replace: true });
       } else if (parsed.isCustomer && parsed.fromHash) {
@@ -107,6 +111,8 @@ function SalonApp() {
         });
       } else if (parsed.isCard && parsed.fromHash) {
         navigateToCardRoute({ replace: true });
+      } else if (parsed.isPrivacy && parsed.fromHash) {
+        navigateToPrivacyRoute({ replace: true });
       }
       setRoute(parsed);
     };
@@ -129,12 +135,14 @@ function SalonApp() {
       document.title = `RiTiVerse — ${label}`;
     } else if (route.isCard) {
       document.title = `${salon?.salon_name || 'RiTiVerse Salon'} — Digital Visiting Card`;
+    } else if (route.isPrivacy) {
+      document.title = `Privacy Policy (DPDP Act, 2023) — ${salon?.salon_name || 'RiTiVerse Salon'}`;
     } else if (route.isNotFound) {
       document.title = 'Page Not Found — RiTiVerse Salon';
     } else if (seo?.title) {
       document.title = seo.title;
     }
-  }, [route.isAdmin, route.isCustomer, route.isCard, route.tab, route.accountTab, route.authMode, isCustomerAuthenticated, seo?.title, salon?.salon_name]);
+  }, [route.isAdmin, route.isCustomer, route.isCard, route.isPrivacy, route.isNotFound, route.tab, route.accountTab, route.authMode, isCustomerAuthenticated, seo?.title, salon?.salon_name]);
 
   // Sync customer route URLs based on authentication state
   useEffect(() => {
@@ -203,6 +211,7 @@ function SalonApp() {
       isAdmin: true,
       isCustomer: false,
       isCard: false,
+      isPrivacy: false,
       isNotFound: false,
       tab: targetTab,
       subTab: resolvedSub,
@@ -224,6 +233,7 @@ function SalonApp() {
       isAdmin: false,
       isCustomer: true,
       isCard: false,
+      isPrivacy: false,
       isNotFound: false,
       accountTab: nextAccountTab,
       authMode: resolvedAuthMode || 'login',
@@ -242,8 +252,25 @@ function SalonApp() {
       isAdmin: false,
       isCustomer: false,
       isCard: true,
+      isPrivacy: false,
       isNotFound: false,
       rawTab: 'card',
+      rawSubTab: null,
+      fromHash: false,
+    }));
+  };
+
+  const openPrivacyPolicy = () => {
+    navigateToPrivacyRoute({ replace: false });
+    setRoute((prev) => ({
+      ...prev,
+      mode: 'privacy',
+      isAdmin: false,
+      isCustomer: false,
+      isCard: false,
+      isPrivacy: true,
+      isNotFound: false,
+      rawTab: 'privacy-policy',
       rawSubTab: null,
       fromHash: false,
     }));
@@ -252,22 +279,23 @@ function SalonApp() {
   const exitToPublic = () => {
     setAccessNotice('');
     navigateToPublicRoute({ replace: false });
-      setRoute({
-        mode: 'public',
-        isAdmin: false,
-        isCustomer: false,
-        isCard: false,
-        isNotFound: false,
-        tab: 'overview',
-        subTab: null,
-        accountTab: 'upcoming',
-        authMode: 'login',
-        explicitAuth: false,
-        rawTab: null,
-        rawSubTab: null,
-        fromHash: false,
-      });
-    };
+    setRoute({
+      mode: 'public',
+      isAdmin: false,
+      isCustomer: false,
+      isCard: false,
+      isPrivacy: false,
+      isNotFound: false,
+      tab: 'overview',
+      subTab: null,
+      accountTab: 'upcoming',
+      authMode: 'login',
+      explicitAuth: false,
+      rawTab: null,
+      rawSubTab: null,
+      fromHash: false,
+    });
+  };
 
     const offlineBanner = isOffline ? (
       <div
@@ -488,6 +516,27 @@ function SalonApp() {
     );
   }
 
+  // DPDP ACT PRIVACY POLICY PAGE
+  if (route.isPrivacy) {
+    return (
+      <>
+        {offlineBanner}
+        <Suspense fallback={<AtelierSpinner label="LOADING PRIVACY NOTICE..." />}>
+          <PrivacyPolicyPage
+            onBackToSite={exitToPublic}
+            onOpenCustomerPortal={openCustomerPortal}
+          />
+        </Suspense>
+        <ErrorBoundary variant="silent">
+          <Suspense fallback={null}>
+            <BookingModal onOpenCustomerPortal={openCustomerPortal} />
+            <WhatsAppFloat />
+          </Suspense>
+        </ErrorBoundary>
+      </>
+    );
+  }
+
   // 404 NOT FOUND VIEW
   if (route.isNotFound) {
     return (
@@ -533,6 +582,7 @@ function SalonApp() {
       <PublicSite
         onOpenCustomerPortal={openCustomerPortal}
         onOpenCard={openCard}
+        onOpenPrivacy={openPrivacyPolicy}
       />
     </Suspense>
   );

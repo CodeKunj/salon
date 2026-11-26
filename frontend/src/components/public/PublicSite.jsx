@@ -14,7 +14,7 @@ import Footer from '../common/Footer';
 import BookingModal from './BookingModal';
 import WhatsAppFloat from '../common/WhatsAppFloat';
 
-export default function PublicSite({ onOpenCustomerPortal, onOpenCard }) {
+export default function PublicSite({ onOpenCustomerPortal, onOpenCard, onOpenPrivacy }) {
   return (
     <div className="min-h-screen bg-[#F7F1E8] text-[#1A1614] flex flex-col selection:bg-[#B4563E] selection:text-[#FFFDF8]">
       <Navbar
@@ -36,6 +36,7 @@ export default function PublicSite({ onOpenCustomerPortal, onOpenCard }) {
       <Footer
         onOpenCustomerPortal={onOpenCustomerPortal}
         onOpenCard={onOpenCard}
+        onOpenPrivacy={onOpenPrivacy}
       />
       <BookingModal onOpenCustomerPortal={onOpenCustomerPortal} />
       <WhatsAppFloat />

@@ -18,7 +18,7 @@ function resolveApiBase() {
   }
   const cleanPath = window.location.pathname
     .replace(/\/index\.html$/i, '')
-    .replace(/\/(admin|account|my-bookings|login|register|card|connect|share)(\/.*)?$/i, '')
+    .replace(/\/(admin|account|my-bookings|login|register|card|connect|share|privacy-policy|privacy)(\/.*)?$/i, '')
     .replace(/\/+$/, '');
   return `${cleanPath}/api`;
 }

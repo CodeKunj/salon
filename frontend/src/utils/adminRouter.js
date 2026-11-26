@@ -204,7 +204,7 @@ export function getAppBasePath(pathname = typeof window !== 'undefined' ? window
       }
     }
   }
-  const deepMatch = pathname.match(/^(.*?)\/(admin|account|my-bookings|login|register|card|connect|share)(\/.*)?$/i);
+  const deepMatch = pathname.match(/^(.*?)\/(admin|account|my-bookings|login|register|card|connect|share|privacy-policy|privacy)(\/.*)?$/i);
   if (deepMatch) {
     return deepMatch[1];
   }
@@ -232,6 +232,7 @@ export function parseAppRoute(loc = typeof window !== 'undefined' ? window.locat
       isAdmin: true,
       isCustomer: false,
       isCard: false,
+      isPrivacy: false,
       isNotFound: false,
       tab,
       subTab,
@@ -253,6 +254,7 @@ export function parseAppRoute(loc = typeof window !== 'undefined' ? window.locat
       isAdmin: false,
       isCustomer: false,
       isCard: true,
+      isPrivacy: false,
       isNotFound: false,
       tab: 'overview',
       subTab: null,
@@ -262,6 +264,28 @@ export function parseAppRoute(loc = typeof window !== 'undefined' ? window.locat
       rawTab: 'card',
       rawSubTab: null,
       fromHash: Boolean(cardHashMatch),
+    };
+  }
+
+  const privacyPathMatch = pathname.match(/^(.*?)\/(privacy-policy|privacy)\/?$/i);
+  const privacyHashMatch = !privacyPathMatch ? hash.match(/^\/?(privacy-policy|privacy)\/?$/i) : null;
+
+  if (privacyPathMatch || privacyHashMatch) {
+    return {
+      mode: 'privacy',
+      isAdmin: false,
+      isCustomer: false,
+      isCard: false,
+      isPrivacy: true,
+      isNotFound: false,
+      tab: 'overview',
+      subTab: null,
+      accountTab: 'upcoming',
+      authMode: 'login',
+      explicitAuth: false,
+      rawTab: 'privacy-policy',
+      rawSubTab: null,
+      fromHash: Boolean(privacyHashMatch),
     };
   }
 
@@ -279,6 +303,7 @@ export function parseAppRoute(loc = typeof window !== 'undefined' ? window.locat
       isAdmin: false,
       isCustomer: true,
       isCard: false,
+      isPrivacy: false,
       isNotFound: false,
       tab: 'overview',
       subTab: null,
@@ -303,6 +328,7 @@ export function parseAppRoute(loc = typeof window !== 'undefined' ? window.locat
     isAdmin: false,
     isCustomer: false,
     isCard: false,
+    isPrivacy: false,
     isNotFound,
     tab: 'overview',
     subTab: null,
@@ -344,6 +370,11 @@ export function buildPublicUrl() {
 export function buildCardUrl() {
   const base = getAppBasePath();
   return `${base}/card`;
+}
+
+export function buildPrivacyUrl() {
+  const base = getAppBasePath();
+  return `${base}/privacy-policy`;
 }
 
 export function syncAdminDocumentBase(needsBase) {
@@ -405,7 +436,17 @@ export function navigateToCardRoute({ replace = false } = {}) {
   const targetUrl = buildCardUrl();
   syncAdminDocumentBase(true);
   if (window.location.pathname !== targetUrl || window.location.hash) {
-    window.history[replace ? 'replaceState' : 'pushState']({ mode: 'card', isAdmin: false, isCustomer: false, isCard: true }, '', targetUrl);
+    window.history[replace ? 'replaceState' : 'pushState']({ mode: 'card', isAdmin: false, isCustomer: false, isCard: true, isPrivacy: false }, '', targetUrl);
+  }
+}
+
+export function navigateToPrivacyRoute({ replace = false } = {}) {
+  if (typeof window === 'undefined') return;
+  const targetUrl = buildPrivacyUrl();
+  syncAdminDocumentBase(true);
+  if (window.location.pathname !== targetUrl || window.location.hash) {
+    window.history[replace ? 'replaceState' : 'pushState']({ mode: 'privacy', isAdmin: false, isCustomer: false, isCard: false, isPrivacy: true }, '', targetUrl);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 }
 

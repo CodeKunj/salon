@@ -3,7 +3,7 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { usePublic } from '../../context/PublicContext';
 import { useBooking } from '../../context/BookingContext';
 import { NivoraButton } from './NivoraPrimitives';
-import { buildCardUrl } from '../../utils/adminRouter';
+import { buildCardUrl, buildPrivacyUrl } from '../../utils/adminRouter';
 import { buildGoogleMapsUrl, buildWhatsAppUrl, normalizeExternalUrl } from '../../utils/salonLinks';
 
 const MENU_ITEMS = [
@@ -20,7 +20,7 @@ const MENU_ITEMS = [
 const TAPER_LINES = [8, 6, 4, 2, 2, 1, 1, 1];
 const CURRENT_YEAR = new Date().getFullYear();
 
-export default function Footer({ onOpenCustomerPortal, onOpenCard }) {
+export default function Footer({ onOpenCustomerPortal, onOpenCard, onOpenPrivacy }) {
   const { salon, booking_rules } = usePublic();
   const { openBooking } = useBooking();
   const footerRef = useRef(null);
@@ -264,13 +264,18 @@ export default function Footer({ onOpenCustomerPortal, onOpenCard }) {
           <div className="mt-12 sm:mt-14 flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-[#F7F1E8]/15 pt-6 font-mono text-[11px] uppercase tracking-[0.1em] text-[#F7F1E8]/75 text-center sm:text-left">
             <span>© {CURRENT_YEAR} {brandName}. All Rights Reserved.</span>
             <div className="flex items-center gap-6">
-              <button
-                type="button"
-                onClick={() => setLegalModal('privacy')}
+              <a
+                href={buildPrivacyUrl()}
+                onClick={(e) => {
+                  if (onOpenPrivacy) {
+                    e.preventDefault();
+                    onOpenPrivacy();
+                  }
+                }}
                 className="hover:text-[#D6A984] transition-colors"
               >
-                Privacy Policy
-              </button>
+                Privacy Policy (DPDP)
+              </a>
               <button
                 type="button"
                 onClick={() => setLegalModal('terms')}
@@ -335,7 +340,20 @@ export default function Footer({ onOpenCustomerPortal, onOpenCard }) {
               </div>
             )}
 
-            <div className="pt-2 flex justify-end">
+            <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
+              <a
+                href={buildPrivacyUrl()}
+                onClick={(e) => {
+                  if (onOpenPrivacy) {
+                    e.preventDefault();
+                    setLegalModal(null);
+                    onOpenPrivacy();
+                  }
+                }}
+                className="font-mono text-[11px] uppercase tracking-wider text-[#933E29] hover:underline font-semibold"
+              >
+                Read DPDP Privacy Policy &rarr;
+              </a>
               <button
                 type="button"
                 onClick={() => setLegalModal(null)}

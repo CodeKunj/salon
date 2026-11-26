@@ -17,6 +17,7 @@ import {
   resolvePublicUrls,
   triggerFileDownload,
 } from '../../utils/salonLinks';
+import { buildPrivacyUrl } from '../../utils/adminRouter';
 
 function formatShortTime(timeStr) {
   if (!timeStr) return '';
@@ -457,6 +458,15 @@ export default function VisitingCardPage({ onBackToSite, onOpenCustomerPortal })
             </div>
           </section>
         )}
+
+        <footer className="pt-2 pb-4 text-center font-mono text-[11px] uppercase tracking-[0.12em] text-[#665B54]">
+          <a
+            href={buildPrivacyUrl()}
+            className="hover:text-[#933E29] underline underline-offset-4 transition-colors"
+          >
+            Privacy Policy (DPDP Act, 2023)
+          </a>
+        </footer>
       </main>
     </div>
   );

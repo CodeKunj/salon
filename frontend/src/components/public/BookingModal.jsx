@@ -11,6 +11,7 @@ import { useBooking } from '../../context/BookingContext';
 import { useCustomerAuth } from '../../context/CustomerAuthContext';
 import CornerMarks from '../common/CornerMarks';
 import SafeImage from '../common/SafeImage';
+import { buildPrivacyUrl } from '../../utils/adminRouter';
 import { buildWhatsAppUrl } from '../../utils/salonLinks';
 
 export default function BookingModal({ onOpenCustomerPortal }) {
@@ -709,6 +710,18 @@ export default function BookingModal({ onOpenCustomerPortal }) {
                     <span>{bookingError}</span>
                   </div>
                 )}
+
+                <p className="text-[11px] font-mono text-[#64748B] leading-relaxed">
+                  By confirming your reservation, you provide consent to process your contact and appointment information as described in our{' '}
+                  <a
+                    href={buildPrivacyUrl()}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[#933E29] font-semibold underline hover:text-[#1A1614]"
+                  >
+                    DPDP Act, 2023 Privacy Policy
+                  </a>.
+                </p>
               </div>
             )}
 
